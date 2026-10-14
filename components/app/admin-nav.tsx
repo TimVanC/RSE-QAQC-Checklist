@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 
 const ADMIN_NAV = [
   { href: '/admin/users', label: 'Users' },
+  { href: '/admin/technicians', label: 'Technicians' },
   { href: '/admin/pay-periods', label: 'Pay periods' },
   { href: '/admin/sync', label: 'Sync' },
   { href: '/admin/export', label: 'Export' },
