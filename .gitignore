@@ -1,0 +1,29 @@
+# dependencies / build
+node_modules/
+.next/
+out/
+dist/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# env and secrets
+.env
+.env.*
+!.env.example
+.vercel/
+.neon/
+
+# client data: never commit workbooks or exports
+*.xlsx
+*.xlsm
+*.csv
+docs/client/
+
+# os / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log
+__pycache__/
