@@ -356,8 +356,12 @@ rse-qaqc-checklist/
 | `webhook` | on event | the one entity |
 | `manual` | button on the queue | the selected day; 1 run/minute/user |
 
-If the Vercel plan is Hobby (daily crons only), `reconcile` runs nightly and an external 15-minute HTTP ping hits
-`/api/cron/reconcile` with the `CRON_SECRET` bearer; webhooks still give near-real-time updates.
+**Decided 2026-10-14:** the Vercel account is on the Hobby plan, which allows only daily crons. `vercel.json`
+therefore runs `reconcile` once a day at 01:00 UTC (21:00 New Jersey, before the nightly calls) and `backfill` at
+07:30 UTC. Freshness inside the day comes from webhooks and the queue's Refresh button. If Ron wants the 15-minute
+cadence without upgrading Vercel, point an external scheduler (for example cron-job.org) at
+`GET /api/cron/reconcile` with header `x-cron-secret: <CRON_SECRET>` every 15 minutes; the endpoint accepts that
+header as well as Vercel's bearer.
 
 ### Webhooks (`/api/webhooks/hcp`)
 1. Read the raw body; verify `HMAC_SHA256(HCP_WEBHOOK_SECRET, Api-Timestamp + "." + body)` against `Api-Signature`
