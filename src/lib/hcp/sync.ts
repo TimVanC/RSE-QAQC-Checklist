@@ -2,8 +2,9 @@
  * Housecall Pro -> Postgres sync (read-only against HCP).
  *
  * Entry points:
- *   runReconcile   every 15 min: jobs scheduled in [today-2d, today+7d] NY plus anything updated
- *                  since the last successful run; retries pending webhook events
+ *   runReconcile   daily at 01:00 UTC on the Vercel Hobby plan (or every 15 min from an external
+ *                  pinger): jobs scheduled in [today-2d, today+7d] NY plus anything updated since
+ *                  the last successful reconcile; the cron route then retries pending webhooks
  *   runBackfill    nightly: employees, catalog, jobs in [today-30d, today+30d]
  *   runManualRefresh  one NY day, triggered from the call queue
  *   syncSingleJob  one job by id (webhooks)
@@ -13,7 +14,8 @@
  * webhook cannot overwrite fresher cron data. Nothing is ever deleted; cancellations and deletions
  * set `canceled_at` / `deleted_at`.
  */
-import { and, eq, gt, inArray, isNull, or, sql } from 'drizzle-orm';
+import 'server-only';
+import { and, eq, gt, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 import type { Db } from '@/src/db';
 import {
   hcpAppointments,
@@ -130,24 +132,35 @@ export async function upsertJobBundle(
 
   const row = mapJob(job, now);
   const update = omit(row, ['hcpJobId', 'createdAt']);
-  await db
+  const written = await db
     .insert(hcpJobs)
     .values(row)
     .onConflictDoUpdate({
       target: hcpJobs.hcpJobId,
       set: update,
       setWhere: or(isNull(hcpJobs.hcpUpdatedAt), sql`${hcpJobs.hcpUpdatedAt} <= excluded.hcp_updated_at`),
-    });
+    })
+    .returning({ id: hcpJobs.hcpJobId });
+  if (written.length === 0) {
+    // The stored job is newer than this snapshot (a webhook landed first): keep its children too.
+    counts.bump('stale_skipped');
+    return;
+  }
   counts.bump('jobs');
 
-  // Assignees: replace the set for this job.
+  // Assignees: replace the set for this job in one transaction (neon-http batches run atomically).
   const techIds = await ensureTechnicianIds(db, job.assigned_employees ?? [], now);
-  await db.delete(hcpJobAssignees).where(eq(hcpJobAssignees.hcpJobId, job.id));
+  const deleteAssignees = db.delete(hcpJobAssignees).where(eq(hcpJobAssignees.hcpJobId, job.id));
   if (techIds.length > 0) {
-    await db
-      .insert(hcpJobAssignees)
-      .values(techIds.map((technicianId) => ({ hcpJobId: job.id, technicianId })))
-      .onConflictDoNothing();
+    await db.batch([
+      deleteAssignees,
+      db
+        .insert(hcpJobAssignees)
+        .values(techIds.map((technicianId) => ({ hcpJobId: job.id, technicianId })))
+        .onConflictDoNothing(),
+    ]);
+  } else {
+    await deleteAssignees;
   }
 
   // Appointments (only present when the job was fetched with expand[]=appointments).
@@ -261,10 +274,15 @@ export async function syncRecentlyUpdated(
     if (jobs.length >= maxPages * 50) break;
   }
   counts.bump('recent_jobs', jobs.length);
-  if (!stop && jobs.length >= maxPages * 50) counts.bump('recent_truncated');
   pages = Math.ceil(jobs.length / 50);
   counts.bump('recent_pages', pages);
   await syncJobList(deps, jobs, counts, true);
+  if (!stop && jobs.length >= maxPages * 50) {
+    // Only happens after a long outage. The newest updates were processed; the nightly 60-day
+    // backfill window picks up the rest, so the run still counts as successful.
+    counts.bump('recent_truncated');
+    deps.log?.('[sync] recently-updated scan truncated', { fetched: jobs.length, since: since.toISOString() });
+  }
   return stripCounter(counts);
 }
 
@@ -327,6 +345,19 @@ export interface RunResult {
   durationMs: number;
 }
 
+const STUCK_RUN_MINUTES = 15;
+
+/** A run still "running" after this long was killed (function timeout); mark it so it is not mistaken for live. */
+export async function expireStuckRuns(db: Db, now: Date): Promise<number> {
+  const cutoff = new Date(now.getTime() - STUCK_RUN_MINUTES * 60_000);
+  const rows = await db
+    .update(syncRuns)
+    .set({ status: 'error', finishedAt: now, error: `timed out (no completion after ${STUCK_RUN_MINUTES} min)` })
+    .where(and(eq(syncRuns.status, 'running'), lt(syncRuns.startedAt, cutoff)))
+    .returning({ id: syncRuns.id });
+  return rows.length;
+}
+
 /** Wrap a sync body in a sync_runs row. Errors are recorded, not thrown. */
 export async function withSyncRun(
   deps: SyncDeps,
@@ -334,6 +365,7 @@ export async function withSyncRun(
   body: (counts: ReturnType<typeof counter>) => Promise<void>,
 ): Promise<RunResult> {
   const startedAt = deps.now?.() ?? new Date();
+  await expireStuckRuns(deps.db, startedAt);
   const [run] = await deps.db
     .insert(syncRuns)
     .values({
@@ -391,7 +423,8 @@ export async function runReconcile(deps: SyncDeps, options: ReconcileOptions): P
   const today = todayAppDate(now);
   const start = appDayRange(addDays(today, -(options.daysBack ?? 2))).start;
   const end = appDayRange(addDays(today, options.daysAhead ?? 7)).end;
-  const last = await lastSuccessfulRunStart(deps.db, ['reconcile', 'backfill']);
+  // Only reconcile runs scan recently-updated jobs, so only they may advance the watermark.
+  const last = await lastSuccessfulRunStart(deps.db, ['reconcile']);
   const since = new Date((last ?? new Date(now.getTime() - 24 * 3_600_000)).getTime() - 5 * 60_000);
   return withSyncRun(
     deps,

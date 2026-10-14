@@ -9,6 +9,7 @@
  *   `RateLimit-Reset` (epoch seconds) and `Retry-After` when present
  * - Logs only ids and counts, never customer data
  */
+import 'server-only';
 import type {
   HcpAppointment,
   HcpCompany,

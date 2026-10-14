@@ -149,7 +149,18 @@ describe('toCsv', () => {
     const rows = awkward.map((value, i) => ({ id: i, text: value }));
     const parsed = parseCsv(toCsv(rows));
     expect(parsed[0]).toEqual(['id', 'text']);
-    expect(parsed.slice(1)).toEqual(awkward.map((value, i) => [String(i), value]));
+    // Everything round-trips except formula-looking text, which is neutralised with a leading apostrophe.
+    expect(parsed.slice(1)).toEqual(awkward.map((value, i) => [String(i), value === '=1+1' ? "'=1+1" : value]));
+  });
+
+  it('neutralises spreadsheet formula injection in string fields only', () => {
+    expect(csvField('=HYPERLINK("http://x")')).toBe(`"'=HYPERLINK(""http://x"")"`);
+    expect(csvField('+1 201 555 0100')).toBe("'+1 201 555 0100");
+    expect(csvField('-Main St')).toBe("'-Main St");
+    expect(csvField('@handle')).toBe("'@handle");
+    expect(csvField('\tlead tab')).toBe("'\tlead tab");
+    expect(csvField(-5)).toBe('-5');
+    expect(csvField('5-7 Oak St')).toBe('5-7 Oak St');
   });
 
   it('serialises mixed cell types in one record', () => {

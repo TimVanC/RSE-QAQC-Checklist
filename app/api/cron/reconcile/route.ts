@@ -7,7 +7,10 @@ import { processPendingWebhooks } from '@/src/lib/hcp/webhook-processor';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
-/** Every 15 minutes (vercel.json): recent window + updated-since watermark + webhook retries. */
+/**
+ * Daily on the Vercel Hobby plan (vercel.json), or every 15 minutes from an external pinger sending
+ * the x-cron-secret header: recent window + updated-since watermark + webhook retries.
+ */
 export async function GET(request: Request) {
   const auth = checkCronAuth(request.headers);
   if (auth !== 'ok') {

@@ -46,6 +46,8 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   let [row] = await db.select().from(appUsers).where(eq(appUsers.authUserId, sessionUser.id)).limit(1);
   if (!row && email) {
     [row] = await db.select().from(appUsers).where(eq(appUsers.email, email)).limit(1);
+    // Never attach a session to a row already linked to a different auth user.
+    if (row?.authUserId && row.authUserId !== sessionUser.id) return null;
     if (row && !row.authUserId) {
       await db
         .update(appUsers)

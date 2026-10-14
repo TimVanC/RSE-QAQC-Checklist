@@ -1,6 +1,6 @@
 'use server';
 
-import { and, eq } from 'drizzle-orm';
+import { and, asc, eq, ne, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { CHECKLIST_CONFIG_VERSION, PROJECT_TYPES, isStepKey } from '@/src/config/checklist-steps';
@@ -28,12 +28,28 @@ function errorMessage(err: unknown): string {
   return 'Something went wrong. Please try again.';
 }
 
+const SUBMITTED_MESSAGE = 'This checklist is submitted. A manager must reopen it before it can be edited.';
+
 async function loadEditable(id: string): Promise<Checklist> {
   const db = getDb();
   const [row] = await db.select().from(checklists).where(eq(checklists.id, id)).limit(1);
   if (!row) throw new ForbiddenError('Checklist not found.');
-  if (row.status === 'submitted') throw new ForbiddenError('This checklist is submitted. A manager must reopen it before it can be edited.');
+  if (row.status === 'submitted') throw new ForbiddenError(SUBMITTED_MESSAGE);
   return row;
+}
+
+/**
+ * Touch the checklist only if it is still editable. Used as the write guard right before an
+ * answer/field write so a submit that lands in between is honoured (no transactions on neon-http).
+ */
+async function touchEditable(id: string, now: Date, status: 'in_progress' | null = null): Promise<void> {
+  const db = getDb();
+  const rows = await db
+    .update(checklists)
+    .set(status ? { status, updatedAt: now } : { updatedAt: now })
+    .where(and(eq(checklists.id, id), ne(checklists.status, 'submitted')))
+    .returning({ id: checklists.id });
+  if (rows.length === 0) throw new ForbiddenError(SUBMITTED_MESSAGE);
 }
 
 /** Store fresh auto-check suggestions without touching manual answers. */
@@ -66,9 +82,12 @@ async function refreshAutoSuggestions(checklistId: string, hcpJobId: string): Pr
 }
 
 /** Find or create the Appointment/Service Call checklist for a job, then refresh its suggestions. */
-export async function openChecklistForJob(hcpJobId: string): Promise<ActionResult<{ id: string; created: boolean }>> {
+export async function openChecklistForJob(hcpJobIdInput: string): Promise<ActionResult<{ id: string; created: boolean }>> {
   try {
     const user = await requireRole('caller');
+    const parsedId = z.string().trim().min(1).max(100).safeParse(hcpJobIdInput);
+    if (!parsedId.success) return fail('Invalid job.');
+    const hcpJobId = parsedId.data;
     const db = getDb();
     const existing = await getTaskChecklistForJob(hcpJobId);
     if (existing) {
@@ -79,11 +98,13 @@ export async function openChecklistForJob(hcpJobId: string): Promise<ActionResul
     const [job] = await db.select().from(hcpJobs).where(eq(hcpJobs.hcpJobId, hcpJobId)).limit(1);
     if (!job) return fail('Job not found. Refresh the call queue and try again.');
 
+    // Deterministic pick for multi-technician jobs (first by name); the caller can change it later.
     const [assignee] = await db
       .select({ id: technicians.id })
       .from(hcpJobAssignees)
       .innerJoin(technicians, eq(technicians.id, hcpJobAssignees.technicianId))
       .where(and(eq(hcpJobAssignees.hcpJobId, hcpJobId), eq(technicians.isTechnician, true)))
+      .orderBy(asc(technicians.firstName), asc(technicians.lastName), asc(technicians.id))
       .limit(1);
 
     const projectDate = job.scheduledStart ? toAppDate(job.scheduledStart) : null;
@@ -95,7 +116,7 @@ export async function openChecklistForJob(hcpJobId: string): Promise<ActionResul
         type: 'task',
         configVersion: CHECKLIST_CONFIG_VERSION,
         callDate: projectDate ?? todayAppDate(),
-        status: 'in_progress',
+        status: 'not_started',
         projectType: inferProjectType({ jobTypeName: job.jobTypeName, tags: job.tags, description: job.description }),
         customerName: job.customerName,
         projectLocation: job.addressFormatted ?? '',
@@ -133,7 +154,7 @@ export async function saveAnswer(input: z.infer<typeof answerSchema>): Promise<A
     const { checklistId, stepKey } = parsed.data;
     const value = normalizeAnswer(parsed.data.value);
     const db = getDb();
-    const checklist = await loadEditable(checklistId);
+    await loadEditable(checklistId);
 
     const [existing] = await db
       .select()
@@ -145,6 +166,8 @@ export async function saveAnswer(input: z.infer<typeof answerSchema>): Promise<A
     const source = value === null ? 'manual' : suggested === null ? 'manual' : suggested === value ? 'auto_confirmed' : 'auto_overridden';
     const now = new Date();
 
+    // Guard against a submit that landed after loadEditable, then write.
+    await touchEditable(checklistId, now, 'in_progress');
     await db
       .insert(checklistAnswers)
       .values({ checklistId, stepKey, value, source, answeredBy: user.id, answeredAt: now })
@@ -154,10 +177,6 @@ export async function saveAnswer(input: z.infer<typeof answerSchema>): Promise<A
       });
 
     const score = await recomputeChecklistScore(db, checklistId);
-    await db
-      .update(checklists)
-      .set({ status: 'in_progress', updatedAt: now })
-      .where(and(eq(checklists.id, checklistId), eq(checklists.status, checklist.status)));
     await recordAudit(db, {
       userId: user.id,
       entity: 'checklist_answer',
@@ -210,10 +229,12 @@ export async function saveField(input: z.infer<typeof fieldSchema>): Promise<Act
     if (field === 'call_date' && value === null) return fail('Call date is required.');
     if (['customer_name', 'project_location', 'referral_project_no'].includes(field) && value === null) value = '';
     const before = checklist[column as keyof Checklist];
-    await db
+    const rows = await db
       .update(checklists)
       .set({ [column]: value, updatedAt: new Date() })
-      .where(eq(checklists.id, checklistId));
+      .where(and(eq(checklists.id, checklistId), ne(checklists.status, 'submitted')))
+      .returning({ id: checklists.id });
+    if (rows.length === 0) throw new ForbiddenError(SUBMITTED_MESSAGE);
     await recordAudit(db, {
       userId: user.id,
       entity: 'checklist',
@@ -236,6 +257,16 @@ export async function submitChecklist(checklistId: string): Promise<ActionResult
     const db = getDb();
     await loadEditable(checklistId);
     const now = new Date();
+    // Flip the status first and conditionally, so two submits (or a submit racing a save) cannot both win.
+    const flipped = await db
+      .update(checklists)
+      .set({ status: 'submitted', submittedBy: user.id, submittedAt: now, updatedAt: now })
+      .where(and(eq(checklists.id, checklistId), ne(checklists.status, 'submitted')))
+      .returning({ id: checklists.id });
+    if (flipped.length === 0) return fail('This checklist was already submitted.');
+
+    // Step 33 ("Close checklist... Enter B if Call Back occurred"): the submit is the signature, so it
+    // becomes Y unless the caller marked it B, which is kept exactly as the workbook would.
     const stepKey = 's33';
     await db
       .insert(checklistAnswers)
@@ -243,12 +274,9 @@ export async function submitChecklist(checklistId: string): Promise<ActionResult
       .onConflictDoUpdate({
         target: [checklistAnswers.checklistId, checklistAnswers.stepKey],
         set: { value: 'Y', source: 'auto_confirmed', autoSuggestedValue: 'Y', autoComputedAt: now, answeredBy: user.id, answeredAt: now },
+        setWhere: sql`${checklistAnswers.value} is distinct from 'B'`,
       });
     const score = await recomputeChecklistScore(db, checklistId);
-    await db
-      .update(checklists)
-      .set({ status: 'submitted', submittedBy: user.id, submittedAt: now, updatedAt: now })
-      .where(eq(checklists.id, checklistId));
     await recordAudit(db, { userId: user.id, entity: 'checklist', entityId: checklistId, action: 'submit', after: { submittedAt: now.toISOString() } });
     revalidatePath('/queue');
     return { ok: true, data: { score: toScoreRow(checklistId, score) } };
@@ -287,6 +315,12 @@ export async function createCallbackChecklist(parentChecklistId: string): Promis
     const [parent] = await db.select().from(checklists).where(eq(checklists.id, parentChecklistId)).limit(1);
     if (!parent) return fail('Original checklist not found.');
     if (parent.type !== 'task') return fail('Call backs can only be created from an Appointment/Service Call checklist.');
+    const [s31] = await db
+      .select({ value: checklistAnswers.value })
+      .from(checklistAnswers)
+      .where(and(eq(checklistAnswers.checklistId, parent.id), eq(checklistAnswers.stepKey, 's31')))
+      .limit(1);
+    if (s31?.value !== 'Y') return fail('Answer Y on step 31 (callback due to a failed installation) before creating a Call Back checklist.');
     const [created] = await db
       .insert(checklists)
       .values({

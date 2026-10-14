@@ -25,9 +25,10 @@ const SYNC_KIND_LABELS: Record<string, string> = {
 
 export default async function QueuePage(props: PageProps<'/queue'>) {
   await requireUser();
-  const { date: rawDate } = await props.searchParams;
+  const { date: rawDate, error: rawError } = await props.searchParams;
   const today = todayAppDate();
   const date = typeof rawDate === 'string' && isIsoDate(rawDate) ? rawDate : today;
+  const openError = typeof rawError === 'string' ? rawError.slice(0, 200) : null;
 
   const { groups, lastSync, asOf } = await getQueueForDate(date);
 
@@ -90,6 +91,13 @@ export default async function QueuePage(props: PageProps<'/queue'>) {
           <RefreshButton date={date} />
         </div>
       </div>
+
+      {openError && (
+        <div role="alert" className="flex items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <InfoIcon className="size-4 shrink-0" />
+          Could not open the checklist: {openError}
+        </div>
+      )}
 
       {!hcpConfigured() && (
         <div className="flex items-center gap-2 rounded-lg border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">

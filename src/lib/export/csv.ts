@@ -35,8 +35,13 @@ export function csvField(value: unknown): string {
   } else {
     text = String(value);
   }
+  // Spreadsheet formula injection: a leading = + - @ or tab/CR makes Excel evaluate the cell.
+  // Numbers are already excluded (handled above), so a leading sign here is text, not a number.
+  if (typeof value === 'string' && FORMULA_PREFIX.test(text)) text = `'${text}`;
   return NEEDS_QUOTING.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
+
+const FORMULA_PREFIX = /^[=+\-@\t\r]/;
 
 /** Union of the keys of all rows, in first-seen order. */
 function inferColumns(rows: readonly CsvRow[]): string[] {

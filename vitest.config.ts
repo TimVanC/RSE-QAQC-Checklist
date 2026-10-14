@@ -7,7 +7,8 @@ const root = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   resolve: {
-    alias: { '@': root },
+    // `server-only` throws outside React Server Components; tests get a no-op so server modules load.
+    alias: { '@': root, 'server-only': `${root}/tests/mocks/server-only.ts` },
   },
   test: {
     include: ['tests/**/*.test.ts'],

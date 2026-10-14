@@ -4,7 +4,7 @@ import { alias } from 'drizzle-orm/pg-core';
 import { getDb } from '@/src/db';
 import { checklists } from '@/src/db/schema/checklists';
 import { hcpJobAssignees, hcpJobs, technicians } from '@/src/db/schema/hcp';
-import { appSettings, syncRuns, type SyncRun } from '@/src/db/schema/system';
+import { appSettings, syncRuns, webhookEvents, type SyncRun } from '@/src/db/schema/system';
 import { appDayRange, type IsoDate } from '@/src/lib/time';
 import {
   excludeJobTypes,
@@ -106,7 +106,18 @@ export async function getQueueForDate(date: IsoDate): Promise<QueueForDate> {
     .orderBy(desc(syncRuns.finishedAt))
     .limit(1);
 
-  const [rows, [setting], [last]] = await Promise.all([rowsQuery, settingQuery, lastSyncQuery]);
+  // Webhooks refresh data without a sync_runs row, so the newest processed event counts as a sync too.
+  const lastWebhookQuery = db
+    .select({ processedAt: webhookEvents.processedAt })
+    .from(webhookEvents)
+    .where(and(eq(webhookEvents.status, 'processed'), isNotNull(webhookEvents.processedAt)))
+    .orderBy(desc(webhookEvents.processedAt))
+    .limit(1);
+  const [rows, [setting], [lastRun], [lastWebhook]] = await Promise.all([rowsQuery, settingQuery, lastSyncQuery, lastWebhookQuery]);
+  const last =
+    lastWebhook?.processedAt && (!lastRun?.finishedAt || lastWebhook.processedAt > lastRun.finishedAt)
+      ? { finishedAt: lastWebhook.processedAt, kind: 'webhook' as const }
+      : lastRun;
 
   const excluded = parseExcludedJobTypes(setting?.value);
   const groups = groupQueueRows(excludeJobTypes<QueueRow>(rows, excluded));

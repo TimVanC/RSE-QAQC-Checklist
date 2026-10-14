@@ -38,14 +38,15 @@ export async function POST(request: Request) {
 
   const deps = getSyncDeps();
   const stored = await storeWebhookEvent(deps.db, payload);
-  if (!stored.isNew || !stored.event) {
+  if (!stored.event) {
     return NextResponse.json({ ok: true, duplicate: true });
   }
 
+  // New event, or a re-delivery of one we have not finished processing: process after responding.
   const event = stored.event;
   after(async () => {
     await processWebhookEvent(deps, event);
   });
 
-  return NextResponse.json({ ok: true, id: event.id, event: event.event });
+  return NextResponse.json({ ok: true, id: event.id, event: event.event, duplicate: !stored.isNew });
 }

@@ -3,6 +3,7 @@
  * re-fetching the entity from the API. The payload is kept for forensics; the API is the source
  * of truth so out-of-order deliveries cannot regress data.
  */
+import 'server-only';
 import { and, eq, inArray, lt, or, sql } from 'drizzle-orm';
 import type { Db } from '@/src/db';
 import { hcpCustomers } from '@/src/db/schema/hcp';
@@ -67,7 +68,11 @@ export interface StoredWebhook {
   event: WebhookEvent | null;
 }
 
-/** Insert the delivery; a repeat of the same event returns isNew=false. */
+/**
+ * Insert the delivery. A repeat of the same event returns isNew=false; if that earlier copy is still
+ * pending or failed (under the attempt cap) it is returned so the caller can retry it now, since
+ * Housecall Pro's own re-delivery is the fastest retry path we have.
+ */
 export async function storeWebhookEvent(db: Db, payload: HcpWebhookPayload): Promise<StoredWebhook> {
   const event = str(payload.event) ?? 'unknown';
   const entityId = webhookEntityId(payload);
@@ -85,7 +90,11 @@ export async function storeWebhookEvent(db: Db, payload: HcpWebhookPayload): Pro
     })
     .onConflictDoNothing({ target: webhookEvents.dedupeKey })
     .returning();
-  return { isNew: Boolean(row), event: row ?? null };
+  if (row) return { isNew: true, event: row };
+  const [earlier] = await db.select().from(webhookEvents).where(eq(webhookEvents.dedupeKey, dedupeKey)).limit(1);
+  const retryable =
+    earlier && (earlier.status === 'pending' || (earlier.status === 'failed' && earlier.attempts < MAX_WEBHOOK_ATTEMPTS));
+  return { isNew: false, event: retryable ? earlier : null };
 }
 
 export type ProcessOutcome = 'processed' | 'skipped' | 'failed';
@@ -98,6 +107,12 @@ export async function processWebhookEvent(deps: SyncDeps, event: WebhookEvent, c
   const bump = (k: string) => {
     if (counts) counts[k] = (counts[k] ?? 0) + 1;
   };
+
+  // Count the attempt before doing the work so an event that kills the function cannot retry forever.
+  await deps.db
+    .update(webhookEvents)
+    .set({ attempts: sql`${webhookEvents.attempts} + 1` })
+    .where(eq(webhookEvents.id, event.id));
 
   let outcome: ProcessOutcome = 'processed';
   let error: string | null = null;
@@ -130,7 +145,6 @@ export async function processWebhookEvent(deps: SyncDeps, event: WebhookEvent, c
     .update(webhookEvents)
     .set({
       status: outcome,
-      attempts: sql`${webhookEvents.attempts} + 1`,
       processedAt: outcome === 'failed' ? null : now,
       error,
     })
@@ -145,9 +159,9 @@ export async function processPendingWebhooks(deps: SyncDeps, counts?: SyncCounts
     .select()
     .from(webhookEvents)
     .where(
-      or(
-        eq(webhookEvents.status, 'pending'),
-        and(eq(webhookEvents.status, 'failed'), lt(webhookEvents.attempts, MAX_WEBHOOK_ATTEMPTS)),
+      and(
+        or(eq(webhookEvents.status, 'pending'), eq(webhookEvents.status, 'failed')),
+        lt(webhookEvents.attempts, MAX_WEBHOOK_ATTEMPTS),
       ),
     )
     .orderBy(webhookEvents.receivedAt)

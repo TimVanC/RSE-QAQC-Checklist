@@ -103,9 +103,10 @@ export function computeAutoChecks(input: AutoCheckInput): AutoCheckMap {
   }
 
   // Step 27: invoiced and charged before departing.
-  if (input.invoices.length > 0) {
-    const paid = input.invoices.find((i) => i.status === 'paid' || i.dueAmountCents === 0);
-    const open = input.invoices.find((i) => i.status !== 'paid' && i.dueAmountCents > 0);
+  const liveInvoices = input.invoices.filter((i) => !['voided', 'canceled', 'uncollectible'].includes(i.status));
+  if (liveInvoices.length > 0) {
+    const paid = liveInvoices.find((i) => i.status === 'paid' || i.dueAmountCents === 0);
+    const open = liveInvoices.find((i) => i.status !== 'paid' && i.dueAmountCents > 0);
     if (paid) {
       const paidAt = paid.paidAt;
       const beforeDeparture = paidAt && job.completedAt ? paidAt.getTime() <= job.completedAt.getTime() + 3_600_000 : null;

@@ -136,7 +136,17 @@ function buildJob(s: Spec): { job: HcpJob; invoices: HcpInvoice[] } {
 async function main() {
   if (process.env.VERCEL_ENV === 'production') throw new Error('refusing to seed sample data in production');
   const { getDb } = await import('../../src/db');
+  const { hcpJobs } = await import('../../src/db/schema/hcp');
+  const { sql, notLike } = await import('drizzle-orm');
   const db = getDb();
+  // Never mix sample rows into a database that already holds real Housecall Pro jobs.
+  const [real] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(hcpJobs)
+    .where(notLike(hcpJobs.hcpJobId, 'job_sample_%'));
+  if ((real?.n ?? 0) > 0) {
+    throw new Error(`refusing to seed: ${real.n} real Housecall Pro job(s) already exist in this database`);
+  }
   const deps = { db, hcp: null as never, log: console.log };
   const result = await withSyncRun(deps, { kind: 'manual', trigger: 'dev-seed' }, async (counts) => {
     const now = new Date();
