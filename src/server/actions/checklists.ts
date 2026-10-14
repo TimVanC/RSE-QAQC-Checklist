@@ -3,7 +3,7 @@
 import { and, eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { CHECKLIST_CONFIG_VERSION, PROJECT_TYPES, STEP_KEYS, isStepKey, type AnswerValue } from '@/src/config/checklist-steps';
+import { CHECKLIST_CONFIG_VERSION, PROJECT_TYPES, isStepKey } from '@/src/config/checklist-steps';
 import { getDb } from '@/src/db';
 import { checklistAnswers, checklistScores, checklists, type Checklist } from '@/src/db/schema/checklists';
 import { hcpJobAssignees, hcpJobs, technicians } from '@/src/db/schema/hcp';
@@ -312,6 +312,3 @@ export async function createCallbackChecklist(parentChecklistId: string): Promis
     return fail(errorMessage(err));
   }
 }
-
-export type { AnswerValue };
-export const ANSWERABLE_STEP_KEYS = STEP_KEYS;
