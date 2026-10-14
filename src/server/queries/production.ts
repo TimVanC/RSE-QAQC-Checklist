@@ -1,0 +1,161 @@
+import 'server-only';
+import { and, eq, gte, lte } from 'drizzle-orm';
+import type { ChecklistType } from '@/src/config/checklist-steps';
+import { getDb } from '@/src/db';
+import { checklistScores, checklists } from '@/src/db/schema/checklists';
+import type { ChecklistStatus } from '@/src/db/schema/enums';
+import { technicians } from '@/src/db/schema/hcp';
+import type { PayPeriodSpan } from '@/src/lib/pay-periods';
+import type { Flag } from '@/src/lib/scoring/checklist-score';
+import {
+  rollupProduction,
+  type ProductionRollup,
+  type ScoredChecklist,
+} from '@/src/lib/scoring/rollup';
+
+export interface ProductionTechnician {
+  id: string;
+  firstName: string;
+  lastName: string;
+  isTechnician: boolean;
+  active: boolean;
+}
+
+/** One checklist in the period with its stored score (score columns are null without a score row). */
+export interface ProductionChecklistRow {
+  technicianId: string | null;
+  type: ChecklistType;
+  status: ChecklistStatus;
+  serviceQuote: number | null;
+  inProgress: number | null;
+  completed: number | null;
+  perfectTask: number | null;
+  failuresValue: number | null;
+}
+
+export interface ProductionLine {
+  /** null for checklists without a technician (or one no longer in the technicians table). */
+  technicianId: string | null;
+  name: string;
+  rollup: ProductionRollup;
+  /** Checklists of either type with status `submitted`. */
+  submitted: number;
+  /** All checklists of either type, any status. */
+  checklists: number;
+}
+
+export interface Production {
+  rows: ProductionLine[];
+  /** Rollup over every checklist in the period (not a sum of the row percentages). */
+  totals: ProductionLine;
+}
+
+const UNASSIGNED = 'No technician';
+
+function flag(value: number | null): Flag {
+  return value !== null && value > 0 ? 1 : 0;
+}
+
+export function toScoredChecklist(row: ProductionChecklistRow): ScoredChecklist {
+  return {
+    type: row.type,
+    score: {
+      service_quote: flag(row.serviceQuote),
+      in_progress: flag(row.inProgress),
+      completed: flag(row.completed),
+      perfect_task: flag(row.perfectTask),
+      failures_value: flag(row.failuresValue),
+    },
+  };
+}
+
+function line(
+  technicianId: string | null,
+  name: string,
+  rows: readonly ProductionChecklistRow[],
+): ProductionLine {
+  return {
+    technicianId,
+    name,
+    rollup: rollupProduction(rows.map(toScoredChecklist)),
+    submitted: rows.filter((r) => r.status === 'submitted').length,
+    checklists: rows.length,
+  };
+}
+
+const collator = new Intl.Collator('en-US', { sensitivity: 'base', numeric: true });
+
+/**
+ * Per-technician production for a set of checklists, using the workbook rollup (task checklists
+ * only; callbacks counted separately). Active technicians always get a row; inactive or
+ * non-technician staff only when they have checklists; unassigned checklists get a final row.
+ */
+export function buildProduction(
+  techs: readonly ProductionTechnician[],
+  rows: readonly ProductionChecklistRow[],
+): Production {
+  const known = new Map(techs.map((t) => [t.id, t]));
+  const byTech = new Map<string | null, ProductionChecklistRow[]>();
+  for (const row of rows) {
+    const key = row.technicianId && known.has(row.technicianId) ? row.technicianId : null;
+    const list = byTech.get(key);
+    if (list) list.push(row);
+    else byTech.set(key, [row]);
+  }
+
+  const listed = techs
+    .filter((t) => (t.isTechnician && t.active) || byTech.has(t.id))
+    .sort(
+      (a, b) =>
+        collator.compare(a.firstName, b.firstName) ||
+        collator.compare(a.lastName, b.lastName) ||
+        a.id.localeCompare(b.id),
+    );
+
+  const out = listed.map((t) =>
+    line(
+      t.id,
+      `${t.firstName} ${t.lastName}`.trim() || 'Unnamed technician',
+      byTech.get(t.id) ?? [],
+    ),
+  );
+  const unassigned = byTech.get(null);
+  if (unassigned) out.push(line(null, UNASSIGNED, unassigned));
+
+  return { rows: out, totals: line(null, 'Total', rows) };
+}
+
+/** Production counts for checklists whose call date falls in the period (calendar dates, inclusive). */
+export async function getProduction(
+  period: Pick<PayPeriodSpan, 'start_date' | 'end_date'>,
+): Promise<Production> {
+  const db = getDb();
+  const [rows, techs] = await Promise.all([
+    db
+      .select({
+        technicianId: checklists.technicianId,
+        type: checklists.type,
+        status: checklists.status,
+        serviceQuote: checklistScores.serviceQuote,
+        inProgress: checklistScores.inProgress,
+        completed: checklistScores.completed,
+        perfectTask: checklistScores.perfectTask,
+        failuresValue: checklistScores.failuresValue,
+      })
+      .from(checklists)
+      .leftJoin(checklistScores, eq(checklistScores.checklistId, checklists.id))
+      .where(
+        and(gte(checklists.callDate, period.start_date), lte(checklists.callDate, period.end_date)),
+      ),
+    db
+      .select({
+        id: technicians.id,
+        firstName: technicians.firstName,
+        lastName: technicians.lastName,
+        isTechnician: technicians.isTechnician,
+        active: technicians.active,
+      })
+      .from(technicians),
+  ]);
+  return buildProduction(techs, rows);
+}
