@@ -23,7 +23,7 @@ export function AppHeader({ user }: { user: CurrentUser }) {
         </Link>
         <nav className="flex items-center gap-1 text-sm">
           {NAV.filter((item) => hasRole(user.role, item.minimum)).map((item) => (
-            <Button key={item.href} render={<Link href={item.href} />} variant="ghost" size="sm">
+            <Button key={item.href} render={<Link href={item.href} />} nativeButton={false} variant="ghost" size="sm">
               {item.label}
             </Button>
           ))}

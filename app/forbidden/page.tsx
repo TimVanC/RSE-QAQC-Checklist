@@ -11,7 +11,7 @@ export default function ForbiddenPage() {
           <CardDescription>Your role does not include this screen.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Button render={<Link href="/" />} variant="outline" className="w-full">
+          <Button render={<Link href="/" />} nativeButton={false} variant="outline" className="w-full">
             Back to home
           </Button>
         </CardContent>
