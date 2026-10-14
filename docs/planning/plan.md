@@ -318,7 +318,7 @@ rse-qaqc-checklist/
   scripts/workbook/                   discovery + fixture generation (python)
   scripts/verify-hcp.ts               day-1 live check: tz, money unit, page_size
   docs/
-  middleware.ts                       session gate for (app) routes
+  proxy.ts                            session gate for (app) routes (Next.js 16 name for middleware.ts)
   vercel.json                         crons
   .env.example
 ```
@@ -328,7 +328,7 @@ rse-qaqc-checklist/
 - Neon Managed Better Auth on the dedicated project. Magic Link plugin enabled with `expires_in: 15`, `disable_sign_up: true`.
 - `@neondatabase/neon-js` auth client; server helper reads the session (per Neon's Next.js server reference) and joins `app_users` by `auth_user_id` (fallback by email on first login, then stored).
 - Invite flow (admin): create `app_users` row, create the Better Auth user through the Admin plugin (random password, never used), send the first magic link. Deactivating sets `active = false` and revokes sessions.
-- `requireRole(allowed: Role[])` is the first line of every server action and route handler; `middleware.ts` only checks for a session. Role comes from `app_users`, so a role change takes effect on the next request.
+- `requireRole(minimum)` is the first line of every server action and route handler; `proxy.ts` only checks for a session. Role comes from `app_users`, so a role change takes effect on the next request.
 - Email sender: shared Neon SMTP for development; dedicated provider on an RSE domain before go-live (open question 19).
 
 ## 7. Housecall Pro sync design (read-only)
@@ -354,7 +354,7 @@ rse-qaqc-checklist/
 | `reconcile` | `*/15 * * * *` | scheduled_start in [today-2d, today+7d] NY, plus updated-since-last-run scan |
 | `backfill` | `30 7 * * *` (03:30 New York) | [today-30d, today+30d], employees, catalog |
 | `webhook` | on event | the one entity |
-| `manual` | button on the queue | the selected day; 1 run/minute/user |
+| `manual` | button on the queue | the selected day; at most 1 run per minute app-wide |
 
 **Decided 2026-10-14:** the Vercel account is on the Hobby plan, which allows only daily crons. `vercel.json`
 therefore runs `reconcile` once a day at 01:00 UTC (21:00 New Jersey, before the nightly calls) and `backfill` at
@@ -400,7 +400,7 @@ pieces and for review of everything delegated.
 ### Phase 1: Foundation and Housecall Pro connection (days 1-4)
 | # | Change | Model | Done when |
 |---|---|---|---|
-| 1.1 | Scaffold: Next.js 15 App Router + TS, Tailwind, shadcn/ui, Drizzle, Vitest, ESLint/Prettier, `vercel.json`, `.env.example`, GitHub Action (typecheck + test) | Sonnet | `npm run build` and `npm test` green in CI |
+| 1.1 | Scaffold: Next.js App Router (16 at build time; `proxy.ts` replaces `middleware.ts`) + TS, Tailwind, shadcn/ui, Drizzle, Vitest, ESLint/Prettier, `vercel.json`, `.env.example`, GitHub Action (typecheck + test) | Sonnet | `npm run build` and `npm test` green in CI |
 | 1.2 | Neon project `rse-qaqc-checklist` + Managed Better Auth (magic link, sign-up off); migration 0001 (all tables in section 4); seed Tim as admin; Vercel project linked with env vars | Fable | tables visible in Neon, preview deploy boots |
 | 1.3 | Auth wiring: login page, callback, session helper, `requireRole`, middleware, admin invite action + users page | Fable | Tim logs in via magic link; a `caller` gets 403 on `/admin` |
 | 1.4 | `checklist-steps.ts`, scorer, rollup, Excel fixture generator, tests | Fable | 60 Excel fixtures pass; config test passes |
