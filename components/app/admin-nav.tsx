@@ -21,6 +21,7 @@ export function AdminNav() {
           <Button
             key={item.href}
             render={<Link href={item.href} aria-current={active ? 'page' : undefined} />}
+            nativeButton={false}
             variant={active ? 'secondary' : 'ghost'}
             size="sm"
           >
