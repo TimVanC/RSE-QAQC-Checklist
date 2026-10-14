@@ -16,7 +16,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "db:seed": "node --env-file-if-exists=.env.local --import tsx src/db/seed.ts",
-    "dev:seed-hcp": "node --env-file-if-exists=.env.local --import tsx scripts/dev/seed-hcp-sample.ts"
+    "dev:seed-hcp": "node --env-file-if-exists=.env.local --import tsx scripts/dev/seed-hcp-sample.ts",
+    "hcp:verify": "node --env-file-if-exists=.env.local --import tsx scripts/verify-hcp.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
