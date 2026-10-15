@@ -31,7 +31,7 @@ Every variable in `.env.example`, and where it lives (status from `vercel env ls
 | `HCP_WEBHOOK_SECRET` | HCP webhook signing secret (HMAC-SHA256) | **not set yet** | not set | no |
 | `CRON_SECRET` | Bearer secret for `/api/cron/*`; Vercel Cron sends it when the variable exists | set | set | yes |
 | `APP_TIMEZONE` | IANA zone for pay periods, the queue day and displayed times | set | set | yes |
-| `NEXT_PUBLIC_APP_URL` | Public base URL; used as the magic-link callback when an admin invites or resends | set | not set | `http://localhost:3000` |
+| `NEXT_PUBLIC_APP_URL` | Public base URL; used in password-reset links sent by the invite and reset actions | set | not set | `http://localhost:3000` |
 | `SEED_ADMIN_EMAIL`, `SEED_ADMIN_NAME` | First admin for `npm run db:seed` | no | no | yes |
 
 What happens when one is missing:
@@ -97,14 +97,16 @@ Order matters in two places: secrets before webhooks, and day-1 verification bef
 
 ### 2.1 Neon Auth: login has to work first
 
-- [ ] Enable Magic Link: Neon console > project `rse-qaqc-checklist` > Settings > Better Auth > Magic Link. Enable it, expiry 15 minutes, "Allow new user registration" OFF. Until this is done nobody can sign in: the login page shows an error (a 404 from Neon Auth is reported as "Magic-link sign-in is not enabled for this app yet").
-- [ ] Disable email+password sign-up on the same Better Auth settings page. The app only uses magic links; the invite flow creates the Neon Auth user on the server with a random password that is never used.
-- [ ] Confirm there is a first admin: sign in at the production URL with your own email. If there is no admin row yet, set `SEED_ADMIN_EMAIL` and `SEED_ADMIN_NAME` in `.env.local`, run `npm run db:seed` (idempotent: creates the admin row and default `app_settings`), and make sure the same email exists as a Neon Auth user (Neon console, or the invite flow once another admin exists).
-- [ ] After changing the sign-up settings, invite a second address of yours from `/admin/users` and sign in with the emailed link. The invite relies on the server creating the auth user through the admin API, so this proves it still works.
+Login is email + password (decided 2026-10-15). Email+password is enabled by default in Neon Auth, so no console toggle is needed. The Neon console cannot restrict sign-up yet; that is fine because the app refuses any session that has no invited, active `app_users` row.
+
+- [ ] Confirm there is a first admin row: if missing, set `SEED_ADMIN_EMAIL` and `SEED_ADMIN_NAME` in `.env.local` and run `npm run db:seed` (idempotent: creates the admin row and default `app_settings`). The same email must exist as a Neon Auth user (Neon console > Better Auth > Create user, or the invite flow once another admin exists).
+- [ ] Set the first admin's password. The seeded admin's Neon Auth user has no password yet, so use **Forgot password** on the login page: enter the admin email, open the emailed link (Neon's shared sender; check spam), choose a password, sign in. If no email arrives, the Neon Auth user may have no credential account: delete it in the Neon console (Better Auth > Users > ⋮ > Delete), then `POST <NEON_AUTH_BASE_URL>/sign-up/email` with `{ "email", "password", "name" }` once to recreate it with a password, and re-mark it admin in the console (⋮ > Make admin). The `app_users` row links itself by email on the first sign-in.
+- [ ] Mark the first admin as **Admin** in Neon Auth (console > Better Auth > Users > ⋮ > Make admin). App admins need the Better Auth admin role to create users and set passwords; the invite flow does this automatically for admins invited later.
+- [ ] Invite a second address of yours from `/admin/users` with a temporary password and sign in with it; then try "Send reset email" on it. This proves the admin API and the email sender work.
 
 ### 2.2 Email sender
 
-- [ ] Before inviting the call team, replace Neon's shared sender with a dedicated one (open question 19): Resend or similar on an RSE-owned domain, or the `send.magic_link` webhook. It needs DNS records from whoever manages RSE DNS. Configure it in the Neon Better Auth settings. Not needed for your own first login.
+- [ ] Email is only used for password resets ("Forgot password", "Send reset email", and invites that choose the set-password link). Admin-set temporary passwords need no email at all. Before relying on reset emails for the call team, replace Neon's shared sender with a dedicated one (open question 19): Resend or similar on an RSE-owned domain. It needs DNS records from whoever manages RSE DNS. Configure it in the Neon Better Auth settings.
 
 ### 2.3 Sample data
 
@@ -334,9 +336,11 @@ ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now();
 
 The role is read from the `app_users` table on every request, so a change applies on the person's next click. A page above someone's role redirects to a "No permission" screen; an action returns an error.
 
-**Invite**: `/admin/users` > Invite (email, name, role). This creates the `app_users` row, creates the sign-in account in Neon Auth, and emails a magic link. Sign-up is off in Neon Auth, so this is the only way in. An email that already exists is refused ("A user with that email already exists"); use Resend link or Reactivate instead. If the toast says the sign-in link could not be sent, the user was still created: fix the cause (Magic Link not enabled, or the email sender) and press Resend link.
+**Invite**: `/admin/users` > Invite (email, name, role, optional temporary password). This creates the `app_users` row and the sign-in account in Neon Auth. Leave the password blank to have one generated; it is shown once on screen, so pass it to the person right away. Tick "Email them a link to choose their own password" to skip passwords entirely (needs a working email sender). An email that already exists is refused ("A user with that email already exists"); use Set password, Send reset email or Reactivate instead. Admins invited through this form are also made admins in Neon Auth so they can set passwords themselves.
 
-**Sign in**: the person enters their email on the login page and gets a link that expires in 15 minutes. Resend link (active users only) sends a fresh one.
+**Sign in**: email and password on the login page. **Forgot password** emails a link that expires in 15 minutes. Signed-in users change their password under their name in the header (Account); other devices are signed out.
+
+**Set password** (admin, in the Users table): type a temporary password or leave the prompt blank to generate one (shown once). **Send reset email** emails the person a set-password link instead. Neither works for a deactivated user.
 
 **Change role**: the role dropdown in the table. You cannot change your own role or deactivate yourself.
 

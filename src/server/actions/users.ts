@@ -6,10 +6,13 @@ import { z } from 'zod';
 import { getDb } from '@/src/db';
 import { appUsers } from '@/src/db/schema/users';
 import { recordAudit } from '@/src/lib/audit';
+import { generateTemporaryPassword, validatePassword } from '@/src/lib/auth/password';
 import { isRole } from '@/src/lib/auth/roles';
 import { getAuth } from '@/src/lib/auth/server';
 import { ForbiddenError, requireRole } from '@/src/lib/auth/session';
 import type { ActionResult } from './checklists';
+
+type Role = 'caller' | 'manager' | 'admin';
 
 function fail(error: string): ActionResult<never> {
   return { ok: false, error };
@@ -22,42 +25,59 @@ function errorMessage(err: unknown): string {
   return 'Something went wrong. Please try again.';
 }
 
-function randomPassword(): string {
-  const bytes = new Uint8Array(24);
-  crypto.getRandomValues(bytes);
-  return Buffer.from(bytes).toString('base64url');
+function appUrl(): string {
+  return (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '');
+}
+
+/** Admins of the app must also be admins in Neon Auth so they can set other users' passwords. */
+function authRoleFor(role: Role): 'admin' | 'user' {
+  return role === 'admin' ? 'admin' : 'user';
+}
+
+async function sendResetEmail(email: string): Promise<boolean> {
+  const { error } = await getAuth().requestPasswordReset({ email, redirectTo: `${appUrl()}/reset-password` });
+  return !error;
 }
 
 const inviteSchema = z.object({
   email: z.string().trim().toLowerCase().email(),
   name: z.string().trim().min(1).max(120),
   role: z.string().refine(isRole, 'invalid role'),
-  sendLink: z.boolean().default(true),
+  temporaryPassword: z.string().optional(),
+  sendResetEmail: z.boolean().default(false),
 });
 
 /**
- * Invite a user: create the app_users row (authorisation) and the Neon Auth user (identity),
- * then email the first magic link. Sign-up is disabled on the auth project, so this is the only
- * way in. The password set on the auth user is random and never used.
+ * Invite a user: create the app_users row (authorisation) and the Neon Auth user (identity) with
+ * either the temporary password the admin typed or a generated one. Optionally email a
+ * set-password link so the admin never has to share a password.
  */
 export async function inviteUser(input: {
   email: string;
   name: string;
   role: string;
-  sendLink?: boolean;
-}): Promise<ActionResult<{ id: string; linkSent: boolean }>> {
+  temporaryPassword?: string;
+  sendResetEmail?: boolean;
+}): Promise<ActionResult<{ id: string; temporaryPassword: string | null; resetEmailSent: boolean }>> {
   try {
     const admin = await requireRole('admin');
     const parsed = inviteSchema.safeParse(input);
     if (!parsed.success) return fail('Enter a valid email, name and role.');
-    const { email, name, role, sendLink } = parsed.data;
+    const { email, name, sendResetEmail: wantEmail } = parsed.data;
+    const role = parsed.data.role as Role;
+    const typed = parsed.data.temporaryPassword?.trim() ?? '';
+    if (typed) {
+      const policy = validatePassword(typed);
+      if (policy) return fail(`Temporary password: ${policy}`);
+    }
+    const password = typed || generateTemporaryPassword();
     const db = getDb();
 
     const [existing] = await db.select({ id: appUsers.id }).from(appUsers).where(eq(appUsers.email, email)).limit(1);
     if (existing) return fail('A user with that email already exists.');
 
     const auth = getAuth();
-    const created = await auth.admin.createUser({ email, name, password: randomPassword(), role: 'user' });
+    const created = await auth.admin.createUser({ email, name, password, role: authRoleFor(role) });
     if (created.error && !/exist/i.test(created.error.message ?? '')) {
       return fail(`Could not create the sign-in account: ${created.error.message}`);
     }
@@ -65,18 +85,14 @@ export async function inviteUser(input: {
 
     const [row] = await db
       .insert(appUsers)
-      .values({ email, name, role: role as 'caller' | 'manager' | 'admin', active: true, authUserId, invitedBy: admin.id })
+      .values({ email, name, role, active: true, authUserId, invitedBy: admin.id })
       .returning({ id: appUsers.id });
     await recordAudit(db, { userId: admin.id, entity: 'app_user', entityId: row.id, action: 'invite', after: { email, name, role } });
 
-    let linkSent = false;
-    if (sendLink) {
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? '';
-      const sent = await auth.signIn.magicLink({ email, callbackURL: `${appUrl}/` });
-      linkSent = !sent.error;
-    }
+    const resetEmailSent = wantEmail ? await sendResetEmail(email) : false;
     revalidatePath('/admin/users');
-    return { ok: true, data: { id: row.id, linkSent } };
+    // Only reveal a password the admin did not type themselves when no email was sent.
+    return { ok: true, data: { id: row.id, temporaryPassword: typed || wantEmail ? null : password, resetEmailSent } };
   } catch (err) {
     return fail(errorMessage(err));
   }
@@ -89,12 +105,17 @@ export async function setUserRole(input: { userId: string; role: string }): Prom
     const admin = await requireRole('admin');
     const parsed = roleSchema.safeParse(input);
     if (!parsed.success) return fail('Invalid role.');
-    const { userId, role } = parsed.data;
+    const { userId } = parsed.data;
+    const role = parsed.data.role as Role;
     if (userId === admin.id && role !== 'admin') return fail('You cannot remove your own admin role.');
     const db = getDb();
-    const [before] = await db.select({ role: appUsers.role }).from(appUsers).where(eq(appUsers.id, userId)).limit(1);
+    const [before] = await db.select({ role: appUsers.role, authUserId: appUsers.authUserId }).from(appUsers).where(eq(appUsers.id, userId)).limit(1);
     if (!before) return fail('User not found.');
-    await db.update(appUsers).set({ role: role as 'caller' | 'manager' | 'admin', updatedAt: new Date() }).where(eq(appUsers.id, userId));
+    await db.update(appUsers).set({ role, updatedAt: new Date() }).where(eq(appUsers.id, userId));
+    if (before.authUserId && authRoleFor(before.role) !== authRoleFor(role)) {
+      const { error } = await getAuth().admin.setRole({ userId: before.authUserId, role: authRoleFor(role) });
+      if (error) console.warn('[users] could not mirror role to Neon Auth', error.message);
+    }
     await recordAudit(db, { userId: admin.id, entity: 'app_user', entityId: userId, action: 'set_role', before: { role: before.role }, after: { role } });
     revalidatePath('/admin/users');
     return { ok: true, data: undefined };
@@ -105,7 +126,7 @@ export async function setUserRole(input: { userId: string; role: string }): Prom
 
 const activeSchema = z.object({ userId: z.string().uuid(), active: z.boolean() });
 
-export async function setUserActive(input: z.infer<typeof activeSchema>): Promise<ActionResult> {
+export async function setUserActive(input: { userId: string; active: boolean }): Promise<ActionResult> {
   try {
     const admin = await requireRole('admin');
     const parsed = activeSchema.safeParse(input);
@@ -129,17 +150,47 @@ export async function setUserActive(input: z.infer<typeof activeSchema>): Promis
   }
 }
 
-export async function resendMagicLink(userId: string): Promise<ActionResult> {
+const tempPasswordSchema = z.object({ userId: z.string().uuid(), password: z.string().optional() });
+
+/** Admin sets (or generates) a temporary password for a user who is locked out. */
+export async function setTemporaryPassword(input: { userId: string; password?: string }): Promise<ActionResult<{ temporaryPassword: string | null }>> {
   try {
-    await requireRole('admin');
+    const admin = await requireRole('admin');
+    const parsed = tempPasswordSchema.safeParse(input);
+    if (!parsed.success) return fail('Invalid request.');
+    const { userId } = parsed.data;
+    const typed = parsed.data.password?.trim() ?? '';
+    if (typed) {
+      const policy = validatePassword(typed);
+      if (policy) return fail(policy);
+    }
+    const password = typed || generateTemporaryPassword();
+    const db = getDb();
+    const [row] = await db.select({ email: appUsers.email, active: appUsers.active, authUserId: appUsers.authUserId }).from(appUsers).where(eq(appUsers.id, userId)).limit(1);
+    if (!row) return fail('User not found.');
+    if (!row.active) return fail('User is deactivated.');
+    if (!row.authUserId) return fail('This user has no sign-in account yet; send them a set-password email instead.');
+    const { error } = await getAuth().admin.setUserPassword({ userId: row.authUserId, newPassword: password });
+    if (error) return fail(`Could not set the password: ${error.message}`);
+    await recordAudit(db, { userId: admin.id, entity: 'app_user', entityId: userId, action: 'set_temporary_password' });
+    return { ok: true, data: { temporaryPassword: typed ? null : password } };
+  } catch (err) {
+    return fail(errorMessage(err));
+  }
+}
+
+/** Email the user a link to choose their own password (also the way to bootstrap a first login). */
+export async function sendPasswordResetEmail(userId: string): Promise<ActionResult> {
+  try {
+    const admin = await requireRole('admin');
     if (!z.string().uuid().safeParse(userId).success) return fail('Invalid user.');
     const db = getDb();
     const [row] = await db.select({ email: appUsers.email, active: appUsers.active }).from(appUsers).where(eq(appUsers.id, userId)).limit(1);
     if (!row) return fail('User not found.');
     if (!row.active) return fail('User is deactivated.');
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? '';
-    const sent = await getAuth().signIn.magicLink({ email: row.email, callbackURL: `${appUrl}/` });
-    if (sent.error) return fail(sent.error.message || 'Could not send the link.');
+    const sent = await sendResetEmail(row.email);
+    if (!sent) return fail('Could not send the email. Check the email sender settings in Neon Auth.');
+    await recordAudit(db, { userId: admin.id, entity: 'app_user', entityId: userId, action: 'send_password_reset' });
     return { ok: true, data: undefined };
   } catch (err) {
     return fail(errorMessage(err));

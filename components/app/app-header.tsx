@@ -30,7 +30,9 @@ export function AppHeader({ user }: { user: CurrentUser }) {
         </nav>
         <div className="ml-auto flex items-center gap-3 text-sm">
           <NyClock />
-          <span className="hidden sm:inline">{user.name}</span>
+          <Link href="/account" className="hidden underline-offset-4 hover:underline sm:inline" title="Your account and password">
+            {user.name}
+          </Link>
           <Badge variant="secondary">{ROLE_LABELS[user.role]}</Badge>
           <form action={signOutAction}>
             <Button type="submit" variant="outline" size="sm">

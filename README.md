@@ -12,7 +12,7 @@ All PRD v1 screens are built: call queue, checklist workspace (autosave, keyboar
 suggestions, submit, manager reopen, call backs), completion tracker, production counts, and the admin area
 (users, pay periods, sync, data export). Pending go-live items, in order:
 
-- Enable Magic Link in Neon Auth and turn off email+password sign-up
+- Set the first admin's password (Forgot password on the login page, or the bootstrap steps in the runbook)
 - Set `HCP_API_KEY`, run `npm run hcp:verify`, record the findings in `docs/reference/`
 - Register the HCP webhook and set `HCP_WEBHOOK_SECRET`; run the first backfill
 - Remove dev sample data, confirm the pay period rule with Ron, invite users
@@ -23,7 +23,7 @@ The step-by-step version is in [`docs/runbook.md`](docs/runbook.md).
 ## Stack
 
 Next.js 16 (App Router) and TypeScript on Vercel (Hobby plan, daily crons), Neon Postgres with Drizzle ORM,
-Neon Managed Better Auth (magic link, invite only), Tailwind CSS 4 and shadcn/ui, Vitest. Node 22 or newer.
+Neon Managed Better Auth (email + password, invite only), Tailwind CSS 4 and shadcn/ui, Vitest. Node 22 or newer.
 The HCP API key is read-only and server side only.
 
 ## Quick start
@@ -58,7 +58,7 @@ A push to `main` deploys to production.
 
 ```
 app/
-  (auth)/login/            magic-link sign-in
+  (auth)/login/            email + password sign-in (also forgot-password/, reset-password/)
   (app)/queue/             call queue by New Jersey day, grouped by technician
   (app)/checklists/        checklist workspace; job/[hcpJobId] finds or creates it
   (app)/tracker/           completion tracker per pay period (manager+)

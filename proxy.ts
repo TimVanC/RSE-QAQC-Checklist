@@ -12,6 +12,6 @@ export default getAuth().middleware({ loginUrl: '/login' });
 
 export const config = {
   matcher: [
-    '/((?!login|no-access|api/auth|api/webhooks|api/cron|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
+    '/((?!login|forgot-password|reset-password|no-access|api/auth|api/webhooks|api/cron|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
   ],
 };
