@@ -40,6 +40,22 @@ export function ResetPasswordForm({ token, linkError }: { token: string | null; 
         setError(err.message || 'Could not reset the password. Request a new link.');
         return;
       }
+      // Sign in straight away when we know the email (the reset was requested in this browser);
+      // otherwise send them to the sign-in form with a confirmation.
+      let email: string | null = null;
+      try {
+        email = window.sessionStorage.getItem('rse-reset-email');
+        window.sessionStorage.removeItem('rse-reset-email');
+      } catch {
+        email = null;
+      }
+      if (email) {
+        const signedIn = await authClient.signIn.email({ email, password });
+        if (!signedIn.error) {
+          window.location.assign('/');
+          return;
+        }
+      }
       router.push('/login?notice=reset');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not reset the password.');

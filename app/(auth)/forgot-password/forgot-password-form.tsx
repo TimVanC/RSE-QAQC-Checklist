@@ -19,6 +19,12 @@ export function ForgotPasswordForm() {
     if (!value) return;
     setState({ kind: 'sending' });
     try {
+      // Lets the reset page sign the person in automatically when the link is opened in this browser.
+      try {
+        window.sessionStorage.setItem('rse-reset-email', value);
+      } catch {
+        /* storage unavailable: the reset page falls back to the sign-in form */
+      }
       const { error } = await authClient.requestPasswordReset({
         email: value,
         redirectTo: `${window.location.origin}/reset-password`,
