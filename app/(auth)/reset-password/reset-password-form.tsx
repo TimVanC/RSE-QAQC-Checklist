@@ -52,7 +52,8 @@ export function ResetPasswordForm({ token, linkError }: { token: string | null; 
       if (email) {
         const signedIn = await authClient.signIn.email({ email, password });
         if (!signedIn.error) {
-          window.location.assign('/');
+          router.push('/');
+          router.refresh();
           return;
         }
       }
