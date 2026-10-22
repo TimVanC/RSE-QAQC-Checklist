@@ -1,18 +1,11 @@
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import type { Role } from '@/src/db/schema/enums';
-import { ROLE_LABELS, hasRole } from '@/src/lib/auth/roles';
+import { ROLE_LABELS } from '@/src/lib/auth/roles';
 import type { CurrentUser } from '@/src/lib/auth/session';
 import { signOutAction } from '@/src/server/actions/auth';
+import { MainNav } from './main-nav';
 import { NyClock } from './ny-clock';
-
-const NAV: Array<{ href: string; label: string; minimum: Role }> = [
-  { href: '/queue', label: 'Call queue', minimum: 'caller' },
-  { href: '/tracker', label: 'Completion tracker', minimum: 'manager' },
-  { href: '/production', label: 'Production', minimum: 'manager' },
-  { href: '/admin', label: 'Admin', minimum: 'admin' },
-];
 
 export function AppHeader({ user }: { user: CurrentUser }) {
   return (
@@ -21,13 +14,7 @@ export function AppHeader({ user }: { user: CurrentUser }) {
         <Link href="/" className="font-semibold tracking-tight">
           RSE QA/QC
         </Link>
-        <nav className="flex items-center gap-1 text-sm">
-          {NAV.filter((item) => hasRole(user.role, item.minimum)).map((item) => (
-            <Button key={item.href} render={<Link href={item.href} />} nativeButton={false} variant="ghost" size="sm">
-              {item.label}
-            </Button>
-          ))}
-        </nav>
+        <MainNav role={user.role} />
         <div className="ml-auto flex items-center gap-3 text-sm">
           <NyClock />
           <Link href="/account" className="hidden underline-offset-4 hover:underline sm:inline" title="Your account and password">

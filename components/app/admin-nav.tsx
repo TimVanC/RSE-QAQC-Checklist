@@ -25,6 +25,7 @@ export function AdminNav() {
             nativeButton={false}
             variant={active ? 'secondary' : 'ghost'}
             size="sm"
+            className={active ? 'rounded-full font-semibold' : 'rounded-full'}
           >
             {item.label}
           </Button>
