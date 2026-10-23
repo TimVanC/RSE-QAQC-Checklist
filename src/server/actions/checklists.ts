@@ -8,6 +8,7 @@ import { getDb } from '@/src/db';
 import { checklistAnswers, checklistScores, checklists, type Checklist } from '@/src/db/schema/checklists';
 import { hcpJobAssignees, hcpJobs, technicians } from '@/src/db/schema/hcp';
 import { recordAudit } from '@/src/lib/audit';
+import { hasRole } from '@/src/lib/auth/roles';
 import { ForbiddenError, requireRole } from '@/src/lib/auth/session';
 import { recomputeChecklistScore, toScoreRow } from '@/src/lib/checklists/score-sync';
 import { inferProjectType } from '@/src/lib/hcp/project-type';
@@ -301,6 +302,53 @@ export async function reopenChecklist(checklistId: string): Promise<ActionResult
     await recordAudit(db, { userId: user.id, entity: 'checklist', entityId: checklistId, action: 'reopen', before: { status: 'submitted' }, after: { status: 'in_progress' } });
     revalidatePath('/queue');
     return { ok: true, data: undefined };
+  } catch (err) {
+    return fail(errorMessage(err));
+  }
+}
+
+/**
+ * Reset: clear every answer, note and step field and go back to Not started. Housecall Pro
+ * suggestions and the header prefill are kept. Callers may reset an unsubmitted checklist;
+ * resetting a submitted one needs a manager (it also removes the submission).
+ */
+export async function resetChecklist(checklistId: string): Promise<ActionResult<{ score: ReturnType<typeof toScoreRow> }>> {
+  try {
+    const user = await requireRole('caller');
+    if (!z.string().uuid().safeParse(checklistId).success) return fail('Invalid checklist.');
+    const db = getDb();
+    const [row] = await db.select().from(checklists).where(eq(checklists.id, checklistId)).limit(1);
+    if (!row) return fail('Checklist not found.');
+    if (row.status === 'submitted' && !hasRole(user.role, 'manager')) {
+      return fail('This checklist is submitted. A manager must reset it.');
+    }
+    const now = new Date();
+    await db
+      .update(checklistAnswers)
+      .set({ value: null, source: 'manual', answeredBy: null, answeredAt: null })
+      .where(eq(checklistAnswers.checklistId, checklistId));
+    await db
+      .update(checklists)
+      .set({
+        status: 'not_started',
+        notes: null,
+        permitSubmittedOn: null,
+        permitFollowupOn: null,
+        permitApprovedOn: null,
+        partsReceivedOn: null,
+        partsOrderNo: null,
+        submittedBy: null,
+        submittedAt: null,
+        reopenedBy: null,
+        reopenedAt: null,
+        updatedAt: now,
+      })
+      .where(eq(checklists.id, checklistId));
+    const score = await recomputeChecklistScore(db, checklistId);
+    await recordAudit(db, { userId: user.id, entity: 'checklist', entityId: checklistId, action: 'reset', before: { status: row.status }, after: { status: 'not_started' } });
+    revalidatePath('/queue');
+    revalidatePath('/tracker');
+    return { ok: true, data: { score: toScoreRow(checklistId, score) } };
   } catch (err) {
     return fail(errorMessage(err));
   }

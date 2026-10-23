@@ -27,6 +27,7 @@ import { formatApp } from '@/src/lib/time';
 import {
   createCallbackChecklist,
   reopenChecklist,
+  resetChecklist,
   saveAnswer,
   submitChecklist,
   type ActionResult,
@@ -418,6 +419,19 @@ export function ChecklistWorkspace({ data, currentUser }: ChecklistWorkspaceProp
     return true;
   }, [checklistId, currentUser.name, enqueue, router]);
 
+  // Reset clears everything server-side; the page re-renders with a new key, so local state is rebuilt.
+  const handleReset = useCallback(async (): Promise<boolean> => {
+    const res = await enqueue(() => resetChecklist(checklistId));
+    if (!res.ok) {
+      toast.error(res.error);
+      return false;
+    }
+    toast.success('Checklist reset to Not started.');
+    router.refresh();
+    return true;
+  }, [checklistId, enqueue, router]);
+  const canReset = !readOnly || hasRole(currentUser.role, 'manager');
+
   const [creatingCallback, startCreateCallback] = useTransition();
   const createCallback = useCallback(() => {
     startCreateCallback(async () => {
@@ -618,6 +632,8 @@ export function ChecklistWorkspace({ data, currentUser }: ChecklistWorkspaceProp
         submitButtonRef={submitButtonRef}
         onSubmit={handleSubmit}
         onReopen={handleReopen}
+        canReset={canReset}
+        onReset={handleReset}
       />
     </div>
   );

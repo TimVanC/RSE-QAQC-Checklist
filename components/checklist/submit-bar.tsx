@@ -32,6 +32,9 @@ export interface SubmitBarProps {
   submitButtonRef: Ref<HTMLButtonElement>;
   onSubmit: () => Promise<boolean>;
   onReopen: () => Promise<boolean>;
+  /** Whether the current user may clear this checklist back to Not started. */
+  canReset: boolean;
+  onReset: () => Promise<boolean>;
 }
 
 export function SubmitBar({
@@ -46,8 +49,19 @@ export function SubmitBar({
   submitButtonRef,
   onSubmit,
   onReopen,
+  canReset,
+  onReset,
 }: SubmitBarProps) {
   const [submitOpen, setSubmitOpen] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
+  const resetConfirmRef = useRef<HTMLButtonElement>(null);
+
+  async function confirmReset() {
+    setBusy(true);
+    const ok = await onReset();
+    setBusy(false);
+    if (ok) setResetOpen(false);
+  }
   const [reopenOpen, setReopenOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const confirmRef = useRef<HTMLButtonElement>(null);
@@ -76,6 +90,11 @@ export function SubmitBar({
         </div>
         <div className="text-xs">{saveStatus}</div>
         <div className="ml-auto flex items-center gap-2">
+          {canReset && (
+            <Button variant="ghost" className="text-muted-foreground" onClick={() => setResetOpen(true)}>
+              Reset
+            </Button>
+          )}
           {submitted ? (
             <>
               <span className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:flex">
@@ -152,6 +171,25 @@ export function SubmitBar({
             <DialogClose render={<Button variant="outline" disabled={busy} />}>Cancel</DialogClose>
             <Button ref={reopenConfirmRef} onClick={() => void confirmReopen()} disabled={busy}>
               {busy ? 'Reopening…' : 'Reopen checklist'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={resetOpen} onOpenChange={(o) => !busy && setResetOpen(o)}>
+        <DialogContent initialFocus={resetConfirmRef}>
+          <DialogHeader>
+            <DialogTitle>Reset this checklist?</DialogTitle>
+            <DialogDescription>
+              Every answer, date field and the notes are cleared and the checklist goes back to Not started.
+              {submitted ? ' The submission is removed as well.' : ''} The job details and Housecall Pro suggestions
+              are kept. This is recorded in the audit trail and cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" disabled={busy} />}>Cancel</DialogClose>
+            <Button ref={resetConfirmRef} variant="destructive" onClick={() => void confirmReset()} disabled={busy}>
+              {busy ? 'Resetting…' : 'Reset checklist'}
             </Button>
           </DialogFooter>
         </DialogContent>

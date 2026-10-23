@@ -30,6 +30,7 @@ export default async function ChecklistPage({ params }: { params: Promise<{ id: 
     checklist.status,
     checklist.submittedAt,
     checklist.reopenedAt,
+    checklist.updatedAt,
   ].join(':');
 
   return (
