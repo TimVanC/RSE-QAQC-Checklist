@@ -7,7 +7,8 @@ import type { ChecklistStatus } from '@/src/db/schema/enums';
 import { hcpJobAssignees, hcpJobs, technicians } from '@/src/db/schema/hcp';
 import { appSettings } from '@/src/db/schema/system';
 import type { PayPeriodSpan } from '@/src/lib/pay-periods';
-import { appDayRange } from '@/src/lib/time';
+import { appDayRange, compareDates } from '@/src/lib/time';
+import { getTrackingStartDate } from './settings';
 import { excludeJobTypes, parseExcludedJobTypes } from './queue-groups';
 
 const EXCLUDED_JOB_TYPES_KEY = 'excluded_job_types';
@@ -69,6 +70,10 @@ export interface Tracker {
   totals: TrackerCounts;
   /** The technician filter in effect: null when none was given or it is not an active technician. */
   technicianId: string | null;
+  /** Jobs before this NJ date are not counted (app_settings.tracking_start_date); null = all jobs. */
+  trackingStartDate?: string | null;
+  /** True when the tracking start date cut off part of the selected period. */
+  trackingStartApplied?: boolean;
 }
 
 export function trackerStatus(status: ChecklistStatus | null | undefined): TrackerStatus {
@@ -170,9 +175,20 @@ export async function getTracker(
   technicianId?: string | null,
 ): Promise<Tracker> {
   const db = getDb();
-  const start = appDayRange(period.start_date).start;
+  // Jobs before the tracking start date (set when the app went live) are not counted as missing.
+  const trackingStartDate = await getTrackingStartDate();
+  const trackingStartApplied = Boolean(trackingStartDate && compareDates(trackingStartDate, period.start_date) > 0);
+  const effectiveStart = trackingStartApplied ? trackingStartDate! : period.start_date;
+  const start = appDayRange(effectiveStart).start;
   const end = appDayRange(period.end_date).end;
   const task = alias(checklists, 'task_checklist');
+  if (compareDates(effectiveStart, period.end_date) > 0) {
+    return {
+      ...(await buildTrackerEmpty(technicianId ?? null)),
+      trackingStartDate,
+      trackingStartApplied,
+    };
+  }
 
   const rowsQuery = db
     .select({
@@ -234,10 +250,29 @@ export async function getTracker(
     settingQuery,
   ]);
 
-  return buildTracker({
-    technicians: techRows,
-    rows,
-    excludedJobTypes: parseExcludedJobTypes(setting?.value),
-    technicianId: technicianId ?? null,
-  });
+  return {
+    ...buildTracker({
+      technicians: techRows,
+      rows,
+      excludedJobTypes: parseExcludedJobTypes(setting?.value),
+      technicianId: technicianId ?? null,
+    }),
+    trackingStartDate,
+    trackingStartApplied,
+  };
+}
+
+/** Tracker with no jobs (the whole period precedes the tracking start date). */
+async function buildTrackerEmpty(technicianId: string | null): Promise<Tracker> {
+  const techRows = await getDb()
+    .select({
+      id: technicians.id,
+      firstName: technicians.firstName,
+      lastName: technicians.lastName,
+      colorHex: technicians.colorHex,
+    })
+    .from(technicians)
+    .where(and(eq(technicians.isTechnician, true), eq(technicians.active, true)))
+    .orderBy(asc(technicians.firstName), asc(technicians.lastName));
+  return buildTracker({ technicians: techRows, rows: [], technicianId });
 }

@@ -3,15 +3,17 @@ import { requirePageRole } from '@/src/lib/auth/session';
 import { periodForDate } from '@/src/lib/pay-periods';
 import { compareDates, todayAppDate } from '@/src/lib/time';
 import { getPayPeriodRule, listPayPeriods } from '@/src/server/queries/pay-periods';
+import { getTrackingStartDate } from '@/src/server/queries/settings';
 import { GeneratePeriods } from './generate-periods';
 import { PeriodsTable } from './periods-table';
 import { PayPeriodRuleForm } from './rule-form';
+import { TrackingStartForm } from './tracking-start-form';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AdminPayPeriodsPage() {
   await requirePageRole('admin');
-  const [rule, periods] = await Promise.all([getPayPeriodRule(), listPayPeriods()]);
+  const [rule, periods, trackingStart] = await Promise.all([getPayPeriodRule(), listPayPeriods(), getTrackingStartDate()]);
   const today = todayAppDate();
   const current = periodForDate(rule, today);
 
@@ -52,6 +54,19 @@ export default async function AdminPayPeriodsPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Tracking start</CardTitle>
+          <CardDescription>
+            The first New Jersey day the completion tracker counts. Jobs before it were tracked in the old
+            workbooks (or predate this app) and are not shown as missing. Leave blank to count every job.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <TrackingStartForm date={trackingStart} />
+        </CardContent>
+      </Card>
 
       <section className="space-y-2">
         <div className="flex flex-wrap items-baseline gap-x-3">

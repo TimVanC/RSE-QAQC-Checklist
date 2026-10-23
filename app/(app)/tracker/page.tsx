@@ -183,6 +183,12 @@ export default async function TrackerPage(props: PageProps<'/tracker'>) {
             the pay period, NJ time
             {!period.id && ' · computed from the pay period rule'}
           </p>
+          {tracker.trackingStartApplied && tracker.trackingStartDate && (
+            <p className="text-sm text-muted-foreground">
+              Counting from <span className="font-medium text-foreground">{tracker.trackingStartDate}</span>, when
+              checklist tracking started in this app. Earlier jobs in this period are not shown as missing.
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <PeriodSelect

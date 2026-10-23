@@ -31,6 +31,32 @@ function revalidateReports() {
   revalidatePath('/production');
 }
 
+const trackingStartSchema = z.object({ date: z.string().refine(isIsoDate, 'invalid date').nullable() });
+
+/**
+ * First New Jersey day the completion tracker counts. Jobs scheduled before it never show as
+ * missing (they were tracked in the old workbooks, or predate the app). Null counts everything.
+ */
+export async function saveTrackingStartDate(input: { date: string | null }): Promise<ActionResult> {
+  try {
+    const admin = await requireRole('admin');
+    const parsed = trackingStartSchema.safeParse(input);
+    if (!parsed.success) return fail('Enter a valid date.');
+    const db = getDb();
+    const key = 'tracking_start_date';
+    const [before] = await db.select({ value: appSettings.value }).from(appSettings).where(eq(appSettings.key, key)).limit(1);
+    await db
+      .insert(appSettings)
+      .values({ key, value: parsed.data.date, updatedBy: admin.id })
+      .onConflictDoUpdate({ target: appSettings.key, set: { value: parsed.data.date, updatedBy: admin.id, updatedAt: new Date() } });
+    await recordAudit(db, { userId: admin.id, entity: 'app_setting', entityId: key, action: 'set', before: { value: before?.value ?? null }, after: { value: parsed.data.date } });
+    revalidateReports();
+    return { ok: true, data: undefined };
+  } catch (err) {
+    return fail(errorMessage(err));
+  }
+}
+
 const ruleSchema = z.object({
   cadence: z.enum(['weekly', 'biweekly', 'monthly']),
   anchor: z.string().refine(isIsoDate, 'invalid date'),
