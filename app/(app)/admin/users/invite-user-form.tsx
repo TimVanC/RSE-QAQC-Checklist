@@ -6,7 +6,8 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ROLE_LABELS, ROLES } from '@/src/lib/auth/roles';
+import type { Role } from '@/src/db/schema/enums';
+import { ROLE_DESCRIPTIONS, ROLE_LABELS, ROLES } from '@/src/lib/auth/roles';
 import { inviteUser } from '@/src/server/actions/users';
 
 export function InviteUserForm() {
@@ -14,7 +15,7 @@ export function InviteUserForm() {
   const [pending, startTransition] = useTransition();
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
-  const [role, setRole] = useState<string>('caller');
+  const [role, setRole] = useState<Role>('caller');
   const [temporaryPassword, setTemporaryPassword] = useState('');
   const [sendResetEmail, setSendResetEmail] = useState(false);
   const [revealed, setRevealed] = useState<{ email: string; password: string } | null>(null);
@@ -80,7 +81,7 @@ export function InviteUserForm() {
           <select
             id="invite-role"
             value={role}
-            onChange={(e) => setRole(e.target.value)}
+            onChange={(e) => setRole(e.target.value as Role)}
             className="h-10 w-full rounded-lg border border-input bg-background px-2 text-base sm:h-8 md:text-sm"
           >
             {ROLES.map((r) => (
@@ -106,6 +107,10 @@ export function InviteUserForm() {
           {pending ? 'Inviting…' : 'Invite'}
         </Button>
       </form>
+      <p className="text-sm text-muted-foreground">
+        <span className="font-medium text-foreground">{ROLE_LABELS[role]}:</span>{' '}
+        {ROLE_DESCRIPTIONS[role]}
+      </p>
       <label className="flex items-start gap-2 text-sm sm:items-center">
         <input
           type="checkbox"

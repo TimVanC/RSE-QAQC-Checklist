@@ -18,3 +18,12 @@ export const ROLE_LABELS: Record<Role, string> = {
   manager: 'Manager',
   admin: 'Admin',
 };
+
+/** What each role can do, in the words shown on the Users page. Each role includes the ones below it. */
+export const ROLE_DESCRIPTIONS: Record<Role, string> = {
+  caller: 'Works the call queue: opens, fills in and submits checklists and adds call backs.',
+  manager:
+    'Everything a caller can do, plus the Completion tracker and Production pages, and can reopen or reset a submitted checklist.',
+  admin:
+    'Everything a manager can do, plus Admin: invite users and set passwords, mark technicians, set pay periods, run syncs and export data.',
+};

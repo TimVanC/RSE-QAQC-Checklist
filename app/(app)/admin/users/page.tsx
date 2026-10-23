@@ -1,4 +1,6 @@
+import { Fragment } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { ROLE_DESCRIPTIONS, ROLE_LABELS, ROLES } from '@/src/lib/auth/roles';
 import { requirePageRole } from '@/src/lib/auth/session';
 import { listUsers } from '@/src/server/queries/users';
 import { InviteUserForm } from './invite-user-form';
@@ -13,15 +15,31 @@ export default async function AdminUsersPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Users</h1>
-        <p className="text-muted-foreground text-sm">
-          Access is by invitation only. Callers fill checklists; managers can also reopen submitted checklists and see
-          the tracker and production counts; admins manage users, pay periods, sync and export.
-        </p>
+        <p className="text-sm text-muted-foreground">Access is by invitation only.</p>
       </div>
       <Card>
         <CardHeader>
+          <CardTitle>Roles</CardTitle>
+          <CardDescription>Each role includes everything the one above it can do.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <dl className="grid gap-3 text-sm sm:grid-cols-[6rem_1fr]">
+            {ROLES.map((r) => (
+              <Fragment key={r}>
+                <dt className="font-medium">{ROLE_LABELS[r]}</dt>
+                <dd className="text-muted-foreground">{ROLE_DESCRIPTIONS[r]}</dd>
+              </Fragment>
+            ))}
+          </dl>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
           <CardTitle>Invite a user</CardTitle>
-          <CardDescription>Creates the account and emails a sign-in link.</CardDescription>
+          <CardDescription>
+            Creates the account with a temporary password you pass on, or emails them a link to
+            choose their own.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <InviteUserForm />
