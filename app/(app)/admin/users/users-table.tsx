@@ -5,11 +5,23 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import type { Role } from '@/src/db/schema/enums';
 import { ROLE_LABELS, ROLES } from '@/src/lib/auth/roles';
 import { formatApp } from '@/src/lib/time';
-import { sendPasswordResetEmail, setTemporaryPassword, setUserActive, setUserRole } from '@/src/server/actions/users';
+import {
+  sendPasswordResetEmail,
+  setTemporaryPassword,
+  setUserActive,
+  setUserRole,
+} from '@/src/server/actions/users';
 
 export interface UserRowData {
   id: string;
@@ -22,7 +34,13 @@ export interface UserRowData {
   linked: boolean;
 }
 
-export function UsersTable({ users, currentUserId }: { users: UserRowData[]; currentUserId: string }) {
+export function UsersTable({
+  users,
+  currentUserId,
+}: {
+  users: UserRowData[];
+  currentUserId: string;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [revealed, setRevealed] = useState<{ email: string; password: string } | null>(null);
@@ -40,7 +58,10 @@ export function UsersTable({ users, currentUserId }: { users: UserRowData[]; cur
   }
 
   function resetPassword(u: UserRowData) {
-    const typed = window.prompt(`Temporary password for ${u.name} (leave blank to generate one):`, '');
+    const typed = window.prompt(
+      `Temporary password for ${u.name} (leave blank to generate one):`,
+      '',
+    );
     if (typed === null) return;
     startTransition(async () => {
       const result = await setTemporaryPassword({ userId: u.id, password: typed });
@@ -48,7 +69,8 @@ export function UsersTable({ users, currentUserId }: { users: UserRowData[]; cur
         toast.error(result.error);
         return;
       }
-      if (result.data.temporaryPassword) setRevealed({ email: u.email, password: result.data.temporaryPassword });
+      if (result.data.temporaryPassword)
+        setRevealed({ email: u.email, password: result.data.temporaryPassword });
       toast.success(`Password set for ${u.name}.`);
     });
   }
@@ -56,9 +78,10 @@ export function UsersTable({ users, currentUserId }: { users: UserRowData[]; cur
   return (
     <div className="space-y-3">
       {revealed && (
-        <div className="rounded-lg border bg-muted/50 px-3 py-2 text-sm">
+        <div className="rounded-lg border bg-muted/50 px-3 py-2 text-sm break-words">
           Temporary password for <span className="font-medium">{revealed.email}</span>:{' '}
-          <code className="rounded bg-background px-1.5 py-0.5 font-mono">{revealed.password}</code>. Share it now; it is not shown again.
+          <code className="rounded bg-background px-1.5 py-0.5 font-mono">{revealed.password}</code>
+          . Share it now; it is not shown again.
           <Button variant="ghost" size="xs" className="ml-2" onClick={() => setRevealed(null)}>
             Dismiss
           </Button>
@@ -67,7 +90,9 @@ export function UsersTable({ users, currentUserId }: { users: UserRowData[]; cur
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Name</TableHead>
+            <TableHead className="sticky left-0 z-10 bg-background shadow-[inset_-1px_0_0_var(--border)]">
+              Name
+            </TableHead>
             <TableHead>Email</TableHead>
             <TableHead>Role</TableHead>
             <TableHead>Status</TableHead>
@@ -80,9 +105,9 @@ export function UsersTable({ users, currentUserId }: { users: UserRowData[]; cur
             const isSelf = u.id === currentUserId;
             return (
               <TableRow key={u.id} className={u.active ? '' : 'opacity-60'}>
-                <TableCell className="font-medium">
+                <TableCell className="sticky left-0 z-10 bg-background font-medium shadow-[inset_-1px_0_0_var(--border)]">
                   {u.name}
-                  {isSelf && <span className="text-muted-foreground ml-2 text-xs">(you)</span>}
+                  {isSelf && <span className="ml-2 text-xs text-muted-foreground">(you)</span>}
                 </TableCell>
                 <TableCell>{u.email}</TableCell>
                 <TableCell>
@@ -90,8 +115,13 @@ export function UsersTable({ users, currentUserId }: { users: UserRowData[]; cur
                     aria-label={`Role for ${u.name}`}
                     value={u.role}
                     disabled={pending || isSelf}
-                    onChange={(e) => run(() => setUserRole({ userId: u.id, role: e.target.value }), `Role updated for ${u.name}.`)}
-                    className="border-input bg-background h-7 rounded-md border px-2 text-sm"
+                    onChange={(e) =>
+                      run(
+                        () => setUserRole({ userId: u.id, role: e.target.value }),
+                        `Role updated for ${u.name}.`,
+                      )
+                    }
+                    className="h-7 rounded-md border border-input bg-background px-2 text-sm"
                   >
                     {ROLES.map((r) => (
                       <option key={r} value={r}>
@@ -102,7 +132,9 @@ export function UsersTable({ users, currentUserId }: { users: UserRowData[]; cur
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
-                    <Badge variant={u.active ? 'secondary' : 'outline'}>{u.active ? 'Active' : 'Deactivated'}</Badge>
+                    <Badge variant={u.active ? 'secondary' : 'outline'}>
+                      {u.active ? 'Active' : 'Deactivated'}
+                    </Badge>
                     {!u.linked && (
                       <Badge variant="outline" title="Has not signed in yet">
                         Never signed in
@@ -110,17 +142,26 @@ export function UsersTable({ users, currentUserId }: { users: UserRowData[]; cur
                     )}
                   </div>
                 </TableCell>
-                <TableCell className="text-muted-foreground">{u.lastLoginAt ? formatApp(u.lastLoginAt) : '—'}</TableCell>
+                <TableCell className="text-muted-foreground">
+                  {u.lastLoginAt ? formatApp(u.lastLoginAt) : '—'}
+                </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
-                    <Button size="sm" variant="outline" disabled={pending || !u.active || isSelf} onClick={() => resetPassword(u)}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={pending || !u.active || isSelf}
+                      onClick={() => resetPassword(u)}
+                    >
                       Set password
                     </Button>
                     <Button
                       size="sm"
                       variant="outline"
                       disabled={pending || !u.active}
-                      onClick={() => run(() => sendPasswordResetEmail(u.id), `Reset email sent to ${u.email}.`)}
+                      onClick={() =>
+                        run(() => sendPasswordResetEmail(u.id), `Reset email sent to ${u.email}.`)
+                      }
                     >
                       Send reset email
                     </Button>
@@ -129,7 +170,10 @@ export function UsersTable({ users, currentUserId }: { users: UserRowData[]; cur
                       variant={u.active ? 'destructive' : 'secondary'}
                       disabled={pending || isSelf}
                       onClick={() =>
-                        run(() => setUserActive({ userId: u.id, active: !u.active }), u.active ? `${u.name} deactivated.` : `${u.name} reactivated.`)
+                        run(
+                          () => setUserActive({ userId: u.id, active: !u.active }),
+                          u.active ? `${u.name} deactivated.` : `${u.name} reactivated.`,
+                        )
                       }
                     >
                       {u.active ? 'Deactivate' : 'Reactivate'}
@@ -141,7 +185,7 @@ export function UsersTable({ users, currentUserId }: { users: UserRowData[]; cur
           })}
           {users.length === 0 && (
             <TableRow>
-              <TableCell colSpan={6} className="text-muted-foreground text-center">
+              <TableCell colSpan={6} className="text-center text-muted-foreground">
                 No users yet.
               </TableCell>
             </TableRow>

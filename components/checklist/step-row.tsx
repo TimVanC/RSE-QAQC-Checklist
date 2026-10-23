@@ -82,7 +82,7 @@ export function StepRow({
       className={cn(
         'grid scroll-mt-20 scroll-mb-28 grid-cols-[2.75rem_minmax(0,1fr)] items-start gap-x-3 gap-y-2 rounded-lg border border-transparent px-3 py-2 transition-colors outline-none sm:grid-cols-[2.75rem_minmax(0,1fr)_auto]',
         'focus-visible:ring-2 focus-visible:ring-ring/60',
-        isSub && 'py-1.5 pl-9',
+        isSub && 'py-1.5 pl-6 sm:pl-9',
         tone ? TONE_CLASS[tone] : 'hover:bg-muted/40',
       )}
     >
@@ -112,7 +112,7 @@ export function StepRow({
                 render={
                   <span
                     tabIndex={0}
-                    className="inline-flex h-5 cursor-help items-center gap-1 rounded-full border border-sky-300 bg-sky-50 px-2 font-medium text-sky-800 dark:border-sky-800 dark:bg-sky-950/60 dark:text-sky-200"
+                    className="inline-flex min-h-5 max-w-full cursor-help flex-wrap items-center gap-x-1 rounded-full border border-sky-300 bg-sky-50 px-2 py-0.5 font-medium text-sky-800 sm:py-0 dark:border-sky-800 dark:bg-sky-950/60 dark:text-sky-200"
                   />
                 }
               >
@@ -154,8 +154,9 @@ export function StepRow({
         {children}
       </div>
 
+      {/* Phones: a full-width row of three equal 44 px buttons under the text. */}
       <div
-        className="col-start-2 flex items-center gap-1.5 sm:col-start-3 sm:row-start-1"
+        className="col-span-2 col-start-1 flex items-center gap-1.5 sm:col-span-1 sm:col-start-3 sm:row-start-1"
         role="group"
         aria-label={`Answer for step ${step.label}`}
       >
@@ -177,8 +178,8 @@ export function StepRow({
               disabled={readOnly}
               onClick={() => onAnswer(step.key, toggleAnswer(value, v))}
               className={cn(
-                'flex items-center justify-center rounded-md border text-sm font-semibold transition-colors outline-none select-none disabled:cursor-not-allowed disabled:opacity-60',
-                isSub ? 'size-8' : 'size-9',
+                'flex h-11 min-w-0 flex-1 items-center justify-center rounded-md border text-base font-semibold transition-colors outline-none select-none disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none sm:text-sm',
+                isSub ? 'sm:size-8' : 'sm:size-9',
                 selected
                   ? SELECTED_CLASS[v]
                   : 'border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground',
@@ -189,7 +190,7 @@ export function StepRow({
             </button>
           );
         })}
-        <span className="flex w-4 justify-center" aria-hidden>
+        <span className="flex w-4 shrink-0 justify-center" aria-hidden>
           {saving && <Loader2Icon className="size-3.5 animate-spin text-muted-foreground" />}
         </span>
       </div>

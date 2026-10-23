@@ -15,7 +15,7 @@ export function QueueDatePicker({ date }: { date: string }) {
       type="date"
       aria-label="Queue date"
       defaultValue={date}
-      className="w-38"
+      className="h-10 min-w-0 flex-1 sm:h-8 sm:w-38 sm:flex-none"
       onChange={(e) => {
         const value = e.target.value;
         // Typing a date fires change events with partial values; only navigate on a full date.

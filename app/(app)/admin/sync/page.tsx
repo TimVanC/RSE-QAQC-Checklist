@@ -1,7 +1,14 @@
 import type { ReactNode } from 'react';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { requirePageRole } from '@/src/lib/auth/session';
 import { formatApp } from '@/src/lib/time';
 import { cn } from '@/src/lib/utils';
@@ -17,7 +24,10 @@ const TIME_FORMAT = 'MMM d, h:mm:ss a';
 const OK_STYLE = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300';
 const PENDING_STYLE = 'border-amber-400 text-amber-700 dark:text-amber-300';
 
-const STATUS_STYLES: Record<string, { variant: 'secondary' | 'destructive' | 'outline'; className?: string }> = {
+const STATUS_STYLES: Record<
+  string,
+  { variant: 'secondary' | 'destructive' | 'outline'; className?: string }
+> = {
   ok: { variant: 'secondary', className: OK_STYLE },
   processed: { variant: 'secondary', className: OK_STYLE },
   running: { variant: 'outline', className: 'border-sky-400 text-sky-700 dark:text-sky-300' },
@@ -53,7 +63,7 @@ function CountChips({ counts }: { counts: Record<string, number> }) {
         <span
           key={key}
           className={cn(
-            'bg-muted rounded px-1.5 py-0.5 font-mono text-xs',
+            'rounded bg-muted px-1.5 py-0.5 font-mono text-xs',
             key.includes('error') && value > 0 && 'bg-destructive/10 text-destructive',
           )}
         >
@@ -67,18 +77,26 @@ function CountChips({ counts }: { counts: Record<string, number> }) {
 function ErrorText({ error }: { error: string | null }) {
   if (!error) return <span className="text-muted-foreground">—</span>;
   return (
-    <div className="text-destructive max-w-sm truncate" title={error}>
+    <div className="max-w-sm truncate text-destructive" title={error}>
       {error}
     </div>
   );
 }
 
-function Section({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
+function Section({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: string;
+  children: ReactNode;
+}) {
   return (
     <section className="space-y-2">
-      <div className="flex items-baseline gap-3">
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
         <h2 className="text-sm font-semibold">{title}</h2>
-        {description ? <span className="text-muted-foreground text-xs">{description}</span> : null}
+        {description ? <span className="text-xs text-muted-foreground">{description}</span> : null}
       </div>
       {children}
     </section>
@@ -87,16 +105,18 @@ function Section({ title, description, children }: { title: string; description?
 
 function Empty({ children }: { children: ReactNode }) {
   return (
-    <div className="text-muted-foreground rounded-lg border border-dashed px-4 py-6 text-center text-sm">{children}</div>
+    <div className="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
+      {children}
+    </div>
   );
 }
 
 function Tile({ label, value, hint }: { label: string; value: number; hint?: string }) {
   return (
-    <div className="bg-card rounded-lg border px-4 py-3">
-      <div className="text-muted-foreground text-xs">{label}</div>
+    <div className="rounded-lg border bg-card px-4 py-3">
+      <div className="text-xs text-muted-foreground">{label}</div>
       <div className="text-2xl font-semibold tabular-nums">{value.toLocaleString('en-US')}</div>
-      {hint ? <div className="text-muted-foreground text-xs">{hint}</div> : null}
+      {hint ? <div className="text-xs text-muted-foreground">{hint}</div> : null}
     </div>
   );
 }
@@ -104,7 +124,7 @@ function Tile({ label, value, hint }: { label: string; value: number; hint?: str
 function Fact({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="space-y-1">
-      <dt className="text-muted-foreground text-xs">{label}</dt>
+      <dt className="text-xs text-muted-foreground">{label}</dt>
       <dd className="text-sm">{children}</dd>
     </div>
   );
@@ -116,7 +136,7 @@ function LastOkSummary({ run }: { run: SyncRunView | null }) {
   return (
     <>
       <span className="font-medium">{formatApp(at, 'MMM d, yyyy h:mm a')}</span>
-      <span className="text-muted-foreground">
+      <span className="break-words text-muted-foreground">
         {' '}
         ({formatDistanceToNowStrict(at, { addSuffix: true })}) · {run.kind}, {run.trigger}
       </span>
@@ -133,7 +153,7 @@ export default async function AdminSyncPage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Housecall Pro sync</h1>
-        <p className="text-muted-foreground text-sm">
+        <p className="text-sm text-muted-foreground">
           Sync runs, webhook deliveries and manual controls. Times are New Jersey time.
         </p>
       </div>
@@ -149,7 +169,9 @@ export default async function AdminSyncPage() {
               ) : (
                 <span className="flex flex-wrap items-center gap-2">
                   <Badge variant="destructive">not set</Badge>
-                  <span className="text-muted-foreground text-xs">Syncs are disabled until HCP_API_KEY is set.</span>
+                  <span className="text-xs text-muted-foreground">
+                    Syncs are disabled until HCP_API_KEY is set.
+                  </span>
                 </span>
               )}
             </Fact>
@@ -185,7 +207,9 @@ export default async function AdminSyncPage() {
 
       <Section title="Sync runs" description={`Latest ${overview.runs.length}, newest first`}>
         {overview.runs.length === 0 ? (
-          <Empty>No sync runs yet. Runs appear here after the first cron run or a manual run.</Empty>
+          <Empty>
+            No sync runs yet. Runs appear here after the first cron run or a manual run.
+          </Empty>
         ) : (
           <div className="rounded-lg border">
             <Table>
@@ -203,13 +227,17 @@ export default async function AdminSyncPage() {
               <TableBody>
                 {overview.runs.map((run) => (
                   <TableRow key={run.id}>
-                    <TableCell className="py-1.5 tabular-nums">{formatApp(run.startedAt, TIME_FORMAT)}</TableCell>
+                    <TableCell className="py-1.5 tabular-nums">
+                      {formatApp(run.startedAt, TIME_FORMAT)}
+                    </TableCell>
                     <TableCell className="py-1.5">{run.kind}</TableCell>
                     <TableCell className="py-1.5">{run.trigger}</TableCell>
                     <TableCell className="py-1.5">
                       <StatusBadge status={run.status} />
                     </TableCell>
-                    <TableCell className="py-1.5 text-right tabular-nums">{formatDuration(run.durationMs)}</TableCell>
+                    <TableCell className="py-1.5 text-right tabular-nums">
+                      {formatDuration(run.durationMs)}
+                    </TableCell>
                     <TableCell className="py-1.5 whitespace-normal">
                       <CountChips counts={run.counts} />
                     </TableCell>
@@ -224,7 +252,10 @@ export default async function AdminSyncPage() {
         )}
       </Section>
 
-      <Section title="Webhook events" description={`Latest ${overview.webhookEvents.length}, newest first`}>
+      <Section
+        title="Webhook events"
+        description={`Latest ${overview.webhookEvents.length}, newest first`}
+      >
         {overview.webhookEvents.length === 0 ? (
           <Empty>No webhook events received yet. Deliveries from Housecall Pro appear here.</Empty>
         ) : (
@@ -242,12 +273,16 @@ export default async function AdminSyncPage() {
               <TableBody>
                 {overview.webhookEvents.map((event) => (
                   <TableRow key={event.id}>
-                    <TableCell className="py-1.5 tabular-nums">{formatApp(event.receivedAt, TIME_FORMAT)}</TableCell>
+                    <TableCell className="py-1.5 tabular-nums">
+                      {formatApp(event.receivedAt, TIME_FORMAT)}
+                    </TableCell>
                     <TableCell className="py-1.5 font-mono text-xs">{event.event}</TableCell>
                     <TableCell className="py-1.5">
                       <StatusBadge status={event.status} />
                     </TableCell>
-                    <TableCell className="py-1.5 text-right tabular-nums">{event.attempts}</TableCell>
+                    <TableCell className="py-1.5 text-right tabular-nums">
+                      {event.attempts}
+                    </TableCell>
                     <TableCell className="py-1.5">
                       <ErrorText error={event.error} />
                     </TableCell>

@@ -9,7 +9,7 @@ export default async function ResetPasswordPage({ searchParams }: { searchParams
   const token = typeof params.token === 'string' ? params.token : null;
   const error = typeof params.error === 'string' ? params.error : null;
   return (
-    <main className="flex flex-1 items-center justify-center p-6">
+    <main className="flex flex-1 items-center justify-center p-4 sm:p-6">
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle>Choose a new password</CardTitle>

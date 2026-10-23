@@ -12,14 +12,16 @@ export default async function AccountPage() {
     <div className="mx-auto max-w-lg space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Your account</h1>
-        <p className="text-muted-foreground text-sm">
+        <p className="text-sm break-words text-muted-foreground">
           {user.name} · {user.email} · <Badge variant="secondary">{ROLE_LABELS[user.role]}</Badge>
         </p>
       </div>
       <Card>
         <CardHeader>
           <CardTitle>Change password</CardTitle>
-          <CardDescription>At least 8 characters. Your other devices will be signed out.</CardDescription>
+          <CardDescription>
+            At least 8 characters. Your other devices will be signed out.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <ChangePasswordForm />

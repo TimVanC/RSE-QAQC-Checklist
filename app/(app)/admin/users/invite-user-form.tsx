@@ -50,18 +50,39 @@ export function InviteUserForm() {
 
   return (
     <div className="space-y-4">
-      <form onSubmit={onSubmit} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_140px_1fr_auto] lg:items-end">
+      <form
+        onSubmit={onSubmit}
+        className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_140px_1fr_auto] lg:items-end"
+      >
         <div className="space-y-1.5">
           <Label htmlFor="invite-email">Email</Label>
-          <Input id="invite-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@rseenergygroup.com" />
+          <Input
+            id="invite-email"
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="name@rseenergygroup.com"
+          />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="invite-name">Name</Label>
-          <Input id="invite-name" required value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" />
+          <Input
+            id="invite-name"
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Full name"
+          />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="invite-role">Role</Label>
-          <select id="invite-role" value={role} onChange={(e) => setRole(e.target.value)} className="border-input bg-background h-8 w-full rounded-lg border px-2 text-sm">
+          <select
+            id="invite-role"
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+            className="h-10 w-full rounded-lg border border-input bg-background px-2 text-base sm:h-8 md:text-sm"
+          >
             {ROLES.map((r) => (
               <option key={r} value={r}>
                 {ROLE_LABELS[r]}
@@ -81,19 +102,24 @@ export function InviteUserForm() {
             disabled={sendResetEmail}
           />
         </div>
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" className="h-10 sm:h-8" disabled={pending}>
           {pending ? 'Inviting…' : 'Invite'}
         </Button>
       </form>
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" className="size-4" checked={sendResetEmail} onChange={(e) => setSendResetEmail(e.target.checked)} />
+      <label className="flex items-start gap-2 text-sm sm:items-center">
+        <input
+          type="checkbox"
+          className="mt-0.5 size-4 shrink-0 sm:mt-0"
+          checked={sendResetEmail}
+          onChange={(e) => setSendResetEmail(e.target.checked)}
+        />
         Email them a link to choose their own password instead of a temporary one
       </label>
       {revealed && (
-        <div className="rounded-lg border bg-muted/50 px-3 py-2 text-sm">
+        <div className="rounded-lg border bg-muted/50 px-3 py-2 text-sm break-words">
           Temporary password for <span className="font-medium">{revealed.email}</span>:{' '}
-          <code className="rounded bg-background px-1.5 py-0.5 font-mono">{revealed.password}</code>. Share it with them now; it is not
-          shown again. They can change it under Account.
+          <code className="rounded bg-background px-1.5 py-0.5 font-mono">{revealed.password}</code>
+          . Share it with them now; it is not shown again. They can change it under Account.
         </div>
       )}
     </div>

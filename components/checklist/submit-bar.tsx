@@ -82,16 +82,24 @@ export function SubmitBar({
   }
 
   return (
-    <div className="sticky bottom-0 z-20 -mx-4 mt-6 border-t bg-background/95 px-4 py-3 backdrop-blur supports-backdrop-filter:bg-background/80">
+    <div className="sticky bottom-0 z-20 -mx-4 mt-6 border-t bg-background/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur supports-backdrop-filter:bg-background/80 sm:-mx-6 sm:px-6">
+      {/* Count + save state on the left, actions on the right; on narrow phones the actions wrap
+          to a second line, still right-aligned. */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <div className="text-sm tabular-nums">
-          <span className="font-medium">{answeredCount}</span>
-          <span className="text-muted-foreground"> of {total} answered</span>
+        <div className="flex min-w-0 flex-col sm:flex-row sm:items-center sm:gap-x-4">
+          <div className="text-sm tabular-nums">
+            <span className="font-medium">{answeredCount}</span>
+            <span className="text-muted-foreground"> of {total} answered</span>
+          </div>
+          <div className="text-xs">{saveStatus}</div>
         </div>
-        <div className="text-xs">{saveStatus}</div>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
           {canReset && (
-            <Button variant="ghost" className="text-muted-foreground" onClick={() => setResetOpen(true)}>
+            <Button
+              variant="ghost"
+              className="h-10 text-muted-foreground sm:h-8"
+              onClick={() => setResetOpen(true)}
+            >
               Reset
             </Button>
           )}
@@ -103,13 +111,21 @@ export function SubmitBar({
                 {submittedAt ? ` · ${formatApp(submittedAt)} NJ` : ''}
               </span>
               {canReopen && (
-                <Button variant="outline" onClick={() => setReopenOpen(true)}>
+                <Button
+                  variant="outline"
+                  className="h-10 sm:h-8"
+                  onClick={() => setReopenOpen(true)}
+                >
                   Reopen
                 </Button>
               )}
             </>
           ) : (
-            <Button ref={submitButtonRef} onClick={() => setSubmitOpen(true)}>
+            <Button
+              ref={submitButtonRef}
+              className="h-10 sm:h-8"
+              onClick={() => setSubmitOpen(true)}
+            >
               Submit checklist
             </Button>
           )}
@@ -181,14 +197,20 @@ export function SubmitBar({
           <DialogHeader>
             <DialogTitle>Reset this checklist?</DialogTitle>
             <DialogDescription>
-              Every answer, date field and the notes are cleared and the checklist goes back to Not started.
-              {submitted ? ' The submission is removed as well.' : ''} The job details and Housecall Pro suggestions
-              are kept. This is recorded in the audit trail and cannot be undone.
+              Every answer, date field and the notes are cleared and the checklist goes back to Not
+              started.
+              {submitted ? ' The submission is removed as well.' : ''} The job details and Housecall
+              Pro suggestions are kept. This is recorded in the audit trail and cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <DialogClose render={<Button variant="outline" disabled={busy} />}>Cancel</DialogClose>
-            <Button ref={resetConfirmRef} variant="destructive" onClick={() => void confirmReset()} disabled={busy}>
+            <Button
+              ref={resetConfirmRef}
+              variant="destructive"
+              onClick={() => void confirmReset()}
+              disabled={busy}
+            >
               {busy ? 'Resetting…' : 'Reset checklist'}
             </Button>
           </DialogFooter>

@@ -25,7 +25,9 @@ export function SyncActions({ pendingWebhooks }: { pendingWebhooks: number }) {
         if (result.ok) toast.success(result.message);
         else toast.error(result.message);
       } catch {
-        toast.error('The request failed before the server answered. Check the connection and try again.');
+        toast.error(
+          'The request failed before the server answered. Check the connection and try again.',
+        );
       } finally {
         setActive(null);
       }
@@ -46,19 +48,37 @@ export function SyncActions({ pendingWebhooks }: { pendingWebhooks: number }) {
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
-        <Button size="sm" disabled={isPending} onClick={() => run('reconcile', runReconcileNow)}>
+        <Button
+          size="sm"
+          className="h-10 sm:h-7"
+          disabled={isPending}
+          onClick={() => run('reconcile', runReconcileNow)}
+        >
           {label('reconcile', 'Run reconcile now', 'Reconciling…')}
         </Button>
-        <Button size="sm" variant="outline" disabled={isPending} onClick={() => run('backfill', runBackfillNow)}>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-10 sm:h-7"
+          disabled={isPending}
+          onClick={() => run('backfill', runBackfillNow)}
+        >
           {label('backfill', 'Run backfill now', 'Backfilling…')}
         </Button>
-        <Button size="sm" variant="outline" disabled={isPending} onClick={() => run('webhooks', retryWebhooksNow)}>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-10 sm:h-7"
+          disabled={isPending}
+          onClick={() => run('webhooks', retryWebhooksNow)}
+        >
           {label('webhooks', `Retry webhooks (${pendingWebhooks})`, 'Retrying…')}
         </Button>
       </div>
-      <p className="text-muted-foreground text-xs">
-        Reconcile: jobs from 2 days back to 7 days ahead, plus anything changed since the last run. Backfill: employees,
-        catalog and 30 days either side (slow). Retry: webhook events that are pending or failed with attempts left.
+      <p className="text-xs text-muted-foreground">
+        Reconcile: jobs from 2 days back to 7 days ahead, plus anything changed since the last run.
+        Backfill: employees, catalog and 30 days either side (slow). Retry: webhook events that are
+        pending or failed with attempts left.
       </p>
     </div>
   );

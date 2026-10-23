@@ -80,7 +80,7 @@ export function ResetPasswordForm({ token, linkError }: { token: string | null; 
           {error}
         </p>
       )}
-      <Button type="submit" className="w-full" disabled={pending}>
+      <Button type="submit" className="h-10 w-full sm:h-8" disabled={pending}>
         {pending ? 'Saving…' : 'Set password'}
       </Button>
     </form>

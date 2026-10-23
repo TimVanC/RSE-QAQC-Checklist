@@ -66,25 +66,49 @@ function JobRow({ job }: { job: QueueJob }) {
   ].filter(Boolean);
 
   return (
-    <div className={cn('grid gap-x-4 gap-y-1.5 px-4 py-2.5', ROW_GRID)}>
+    // Below lg each job is a small card: time + job status, customer and address, job number,
+    // checklist badges, then a full-width Open button. From lg up it is one row of ROW_GRID.
+    <div
+      className={cn(
+        'grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1.5 px-4 py-3 lg:py-2.5',
+        ROW_GRID,
+      )}
+    >
       <div
         className={cn(
-          'text-sm tabular-nums',
+          'self-center text-sm font-medium tabular-nums lg:font-normal',
           job.workState === 'canceled' && 'text-muted-foreground line-through',
         )}
       >
         {timeRange(job)}
       </div>
-      <div className={cn('min-w-0', job.workState === 'canceled' && 'opacity-60')}>
-        <div className="truncate font-medium">{job.customerName || 'Unknown customer'}</div>
+      <div
+        className={cn(
+          'col-span-2 min-w-0 lg:col-span-1',
+          job.workState === 'canceled' && 'opacity-60',
+        )}
+      >
+        <div className="font-semibold break-words lg:truncate lg:font-medium">
+          {job.customerName || 'Unknown customer'}
+        </div>
         {job.addressFormatted && (
-          <div className="truncate text-xs text-muted-foreground" title={job.addressFormatted}>
+          <div
+            className="text-xs break-words text-muted-foreground lg:truncate"
+            title={job.addressFormatted}
+          >
             {job.addressFormatted}
           </div>
         )}
       </div>
-      <div className={cn('min-w-0', job.workState === 'canceled' && 'opacity-60')}>
-        <div className="truncate font-medium tabular-nums">{job.invoiceNumber ? `#${job.invoiceNumber}` : 'No job number'}</div>
+      <div
+        className={cn(
+          'col-span-2 min-w-0 lg:col-span-1',
+          job.workState === 'canceled' && 'opacity-60',
+        )}
+      >
+        <div className="truncate font-medium tabular-nums">
+          {job.invoiceNumber ? `#${job.invoiceNumber}` : 'No job number'}
+        </div>
         {(meta.length > 0 || job.tags.length > 0) && (
           <div className="mt-0.5 flex flex-wrap items-center gap-1">
             {meta.length > 0 && (
@@ -102,7 +126,7 @@ function JobRow({ job }: { job: QueueJob }) {
           </div>
         )}
       </div>
-      <div>
+      <div className="col-start-2 row-start-1 self-center justify-self-end lg:col-auto lg:row-auto lg:justify-self-auto">
         <Badge
           variant="outline"
           className={work.className}
@@ -111,13 +135,17 @@ function JobRow({ job }: { job: QueueJob }) {
           {work.label}
         </Badge>
       </div>
-      <div className="flex flex-wrap items-center gap-1">
+      <div className="col-span-2 flex min-w-0 flex-wrap items-center gap-1 lg:col-span-1">
         <Badge variant="outline" className={checklist.className} title="Checklist status">
           <ChecklistIcon data-icon="inline-start" />
           {checklist.label}
         </Badge>
         {job.failures.length > 0 && (
-          <Badge variant="destructive" title="Failure flags on this checklist (workbook Red)">
+          <Badge
+            variant="destructive"
+            className="h-auto min-h-5 max-w-full whitespace-normal"
+            title="Failure flags on this checklist (workbook Red)"
+          >
             Failed: {job.failures.join(', ')}
           </Badge>
         )}
@@ -131,10 +159,11 @@ function JobRow({ job }: { job: QueueJob }) {
           </Badge>
         )}
       </div>
-      <div className="lg:justify-self-end">
+      <div className="col-span-2 pt-1 lg:col-span-1 lg:justify-self-end lg:pt-0">
         <Button
           variant="outline"
           size="sm"
+          className="h-10 w-full sm:w-auto lg:h-7"
           nativeButton={false}
           render={<Link href={`/checklists/job/${encodeURIComponent(job.hcpJobId)}`} />}
         >
@@ -151,7 +180,7 @@ export function TechnicianSection({ group }: { group: QueueGroup }) {
   return (
     <Card size="sm" className="gap-0 pb-0">
       <CardHeader className="border-b">
-        <CardTitle className="flex items-center gap-2">
+        <CardTitle className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
           <span
             aria-hidden
             className={cn(

@@ -46,10 +46,11 @@ export function PeriodSelect({
 }: PeriodSelectProps) {
   const router = useRouter();
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex w-full items-center gap-2 sm:w-auto">
       <Button
         variant="outline"
         size="icon-sm"
+        className="size-10 sm:size-7"
         aria-label={`Previous period: ${prev.label}`}
         title={prev.label}
         nativeButton={false}
@@ -61,7 +62,7 @@ export function PeriodSelect({
         aria-label="Pay period"
         value={value}
         onChange={(e) => router.push(periodHref(basePath, query, e.target.value))}
-        className="h-8 rounded-lg border border-input bg-background px-2 text-sm"
+        className="h-10 min-w-0 flex-1 rounded-lg border border-input bg-background px-2 text-base sm:h-8 sm:flex-none md:text-sm"
       >
         {options.map((o) => (
           <option key={o.start_date} value={o.start_date}>
@@ -72,6 +73,7 @@ export function PeriodSelect({
       <Button
         variant="outline"
         size="icon-sm"
+        className="size-10 sm:size-7"
         aria-label={`Next period: ${next.label}`}
         title={next.label}
         nativeButton={false}
@@ -82,6 +84,7 @@ export function PeriodSelect({
       <Button
         variant={value === currentStart ? 'secondary' : 'outline'}
         size="sm"
+        className="h-10 sm:h-7"
         nativeButton={false}
         render={<Link href={periodHref(basePath, query, currentStart)} />}
       >

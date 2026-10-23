@@ -82,6 +82,74 @@ function StatusChip({ job }: { job: TrackerJob }) {
   );
 }
 
+function OpenButton({ job, className }: { job: TrackerJob; className?: string }) {
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      className={className}
+      nativeButton={false}
+      render={<Link href={`/checklists/job/${encodeURIComponent(job.hcpJobId)}`} />}
+    >
+      Open
+    </Button>
+  );
+}
+
+function ChecklistCell({ job }: { job: TrackerJob }) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+      <StatusChip job={job} />
+      {job.failures.length > 0 && (
+        <Badge variant="destructive" title="Failure flags on this checklist (workbook Red)">
+          Failed: {job.failures.join(', ')}
+        </Badge>
+      )}
+      {job.callbackCount > 0 && (
+        <span className="text-xs text-muted-foreground">
+          + {plural(job.callbackCount, 'call back')}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/** Phones: one small card per job instead of a sideways-scrolling table. */
+function JobCards({ jobs }: { jobs: TrackerJob[] }) {
+  return (
+    <ul className="divide-y rounded-lg border md:hidden">
+      {jobs.map((job) => (
+        <li
+          key={job.hcpJobId}
+          className={cn('space-y-1.5 px-3 py-3', job.status === 'missing' && 'bg-destructive/5')}
+        >
+          <div className="text-sm font-medium tabular-nums">
+            {formatApp(job.scheduledStart, 'EEE MMM d, h:mm a')}
+          </div>
+          <div className="min-w-0">
+            <div className="font-semibold break-words">
+              {job.customerName || '—'}
+              {job.invoiceNumber && (
+                <span className="ml-2 text-xs font-normal text-muted-foreground">
+                  #{job.invoiceNumber}
+                </span>
+              )}
+            </div>
+            {job.jobTypeName && (
+              <div className="text-xs break-words text-muted-foreground">{job.jobTypeName}</div>
+            )}
+          </div>
+          <ChecklistCell job={job} />
+          <OpenButton job={job} className="mt-1 h-10 w-full" />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** Sticky first column so the date stays visible while the table scrolls sideways. */
+const STICKY_CELL = 'sticky left-0 z-10 bg-card shadow-[inset_-1px_0_0_var(--border)]';
+
 function TechnicianCard({ group }: { group: TrackerGroup }) {
   return (
     <Card>
@@ -99,10 +167,11 @@ function TechnicianCard({ group }: { group: TrackerGroup }) {
         <CountBadges counts={group.counts} />
       </CardHeader>
       <CardContent>
-        <Table>
+        <JobCards jobs={group.jobs} />
+        <Table className="hidden md:table">
           <TableHeader>
             <TableRow>
-              <TableHead className="w-44">Date (NJ)</TableHead>
+              <TableHead className={cn('w-44', STICKY_CELL)}>Date (NJ)</TableHead>
               <TableHead>Customer</TableHead>
               <TableHead>Job type</TableHead>
               <TableHead className="w-48">Checklist</TableHead>
@@ -117,7 +186,14 @@ function TechnicianCard({ group }: { group: TrackerGroup }) {
                 key={job.hcpJobId}
                 className={cn(job.status === 'missing' && 'bg-destructive/5')}
               >
-                <TableCell className="tabular-nums">
+                <TableCell
+                  className={cn(
+                    'tabular-nums',
+                    STICKY_CELL,
+                    job.status === 'missing' &&
+                      'bg-[color-mix(in_oklch,var(--destructive)_5%,var(--card))]',
+                  )}
+                >
                   {formatApp(job.scheduledStart, 'EEE MMM d, h:mm a')}
                 </TableCell>
                 <TableCell className="font-medium">
@@ -130,29 +206,10 @@ function TechnicianCard({ group }: { group: TrackerGroup }) {
                 </TableCell>
                 <TableCell>{job.jobTypeName ?? '—'}</TableCell>
                 <TableCell>
-                  <div className="flex items-center gap-2">
-                    <StatusChip job={job} />
-                    {job.failures.length > 0 && (
-                      <Badge variant="destructive" title="Failure flags on this checklist (workbook Red)">
-                        Failed: {job.failures.join(', ')}
-                      </Badge>
-                    )}
-                    {job.callbackCount > 0 && (
-                      <span className="text-xs text-muted-foreground">
-                        + {plural(job.callbackCount, 'call back')}
-                      </span>
-                    )}
-                  </div>
+                  <ChecklistCell job={job} />
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    nativeButton={false}
-                    render={<Link href={`/checklists/job/${encodeURIComponent(job.hcpJobId)}`} />}
-                  >
-                    Open
-                  </Button>
+                  <OpenButton job={job} />
                 </TableCell>
               </TableRow>
             ))}
@@ -181,7 +238,7 @@ export default async function TrackerPage(props: PageProps<'/tracker'>) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-        <div>
+        <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight">Completion tracker</h1>
           <p className="text-sm text-muted-foreground">
             <span className="font-medium text-foreground">{period.label}</span> · jobs scheduled in
@@ -190,12 +247,14 @@ export default async function TrackerPage(props: PageProps<'/tracker'>) {
           </p>
           {tracker.trackingStartApplied && tracker.trackingStartDate && (
             <p className="text-sm text-muted-foreground">
-              Counting from <span className="font-medium text-foreground">{tracker.trackingStartDate}</span>, when
-              checklist tracking started in this app. Earlier jobs in this period are not shown as missing.
+              Counting from{' '}
+              <span className="font-medium text-foreground">{tracker.trackingStartDate}</span>, when
+              checklist tracking started in this app. Earlier jobs in this period are not shown as
+              missing.
             </p>
           )}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
           <PeriodSelect
             basePath="/tracker"
             query={technicianId ? { technician: technicianId } : undefined}

@@ -61,7 +61,7 @@ export function ForgotPasswordForm() {
           {state.message}
         </p>
       )}
-      <Button type="submit" className="w-full" disabled={state.kind === 'sending'}>
+      <Button type="submit" className="h-10 w-full sm:h-8" disabled={state.kind === 'sending'}>
         {state.kind === 'sending' ? 'Sending…' : 'Send reset link'}
       </Button>
       <p className="text-center text-sm">

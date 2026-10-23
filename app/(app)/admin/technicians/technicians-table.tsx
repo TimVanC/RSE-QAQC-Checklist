@@ -4,7 +4,14 @@ import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { formatApp } from '@/src/lib/time';
 import { setTechnicianFlag } from '@/src/server/actions/technicians';
 
@@ -30,7 +37,9 @@ export function TechniciansTable({ rows }: { rows: TechnicianRowData[] }) {
         toast.error(result.error);
         return;
       }
-      toast.success(`${row.name}: ${field === 'isTechnician' ? 'technician' : 'active'} ${value ? 'on' : 'off'}.`);
+      toast.success(
+        `${row.name}: ${field === 'isTechnician' ? 'technician' : 'active'} ${value ? 'on' : 'off'}.`,
+      );
       router.refresh();
     });
   }
@@ -39,7 +48,9 @@ export function TechniciansTable({ rows }: { rows: TechnicianRowData[] }) {
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>Name</TableHead>
+          <TableHead className="sticky left-0 z-10 bg-background shadow-[inset_-1px_0_0_var(--border)]">
+            Name
+          </TableHead>
           <TableHead>Housecall Pro role</TableHead>
           <TableHead>Email</TableHead>
           <TableHead>Technician</TableHead>
@@ -50,13 +61,23 @@ export function TechniciansTable({ rows }: { rows: TechnicianRowData[] }) {
       <TableBody>
         {rows.map((row) => (
           <TableRow key={row.id} className={row.active ? '' : 'opacity-60'}>
-            <TableCell className="font-medium">
+            <TableCell className="sticky left-0 z-10 bg-background font-medium shadow-[inset_-1px_0_0_var(--border)]">
               <span className="inline-flex items-center gap-2">
-                <span className="inline-block size-2.5 rounded-full" style={{ backgroundColor: row.colorHex ?? '#999' }} aria-hidden />
+                <span
+                  className="inline-block size-2.5 rounded-full"
+                  style={{ backgroundColor: row.colorHex ?? '#999' }}
+                  aria-hidden
+                />
                 {row.name}
               </span>
             </TableCell>
-            <TableCell>{row.hcpRole ? <Badge variant="outline">{row.hcpRole}</Badge> : <span className="text-muted-foreground">—</span>}</TableCell>
+            <TableCell>
+              {row.hcpRole ? (
+                <Badge variant="outline">{row.hcpRole}</Badge>
+              ) : (
+                <span className="text-muted-foreground">—</span>
+              )}
+            </TableCell>
             <TableCell className="text-muted-foreground">{row.email ?? '—'}</TableCell>
             <TableCell>
               <label className="inline-flex items-center gap-2 text-sm">
@@ -89,7 +110,7 @@ export function TechniciansTable({ rows }: { rows: TechnicianRowData[] }) {
         ))}
         {rows.length === 0 && (
           <TableRow>
-            <TableCell colSpan={6} className="text-muted-foreground text-center">
+            <TableCell colSpan={6} className="text-center text-muted-foreground">
               No employees synced yet. Run a backfill from the Sync page.
             </TableCell>
           </TableRow>

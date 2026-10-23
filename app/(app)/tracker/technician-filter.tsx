@@ -22,7 +22,7 @@ export function TechnicianFilter({
         if (e.target.value) params.set('technician', e.target.value);
         router.push(`/tracker?${params.toString()}`);
       }}
-      className="h-8 rounded-lg border border-input bg-background px-2 text-sm"
+      className="h-10 w-full rounded-lg border border-input bg-background px-2 text-base sm:h-8 sm:w-auto md:text-sm"
     >
       <option value="">All technicians</option>
       {technicians.map((t) => (

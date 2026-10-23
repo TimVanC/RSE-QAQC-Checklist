@@ -20,7 +20,7 @@ export function LoginForm({ notice }: { notice?: string | null }) {
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <Label htmlFor="password">Password</Label>
-          <Link href="/forgot-password" className="text-muted-foreground text-xs underline-offset-4 hover:underline">
+          <Link href="/forgot-password" className="text-muted-foreground -my-2 py-2 text-xs underline-offset-4 hover:underline">
             Forgot password?
           </Link>
         </div>
@@ -31,7 +31,7 @@ export function LoginForm({ notice }: { notice?: string | null }) {
           {state.error}
         </p>
       )}
-      <Button type="submit" className="w-full" disabled={pending}>
+      <Button type="submit" className="h-10 w-full sm:h-8" disabled={pending}>
         {pending ? 'Signing in…' : 'Sign in'}
       </Button>
     </form>

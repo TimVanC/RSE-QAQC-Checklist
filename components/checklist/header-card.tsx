@@ -36,6 +36,9 @@ export interface HeaderCardProps {
   onCallDateSaved: (value: string) => void;
 }
 
+/** Header inputs are 40 px tall on phones (touch), the usual 32 px from sm up. */
+const FIELD_CLASS = 'h-10 sm:h-8';
+
 function formatMoney(cents: number | null): string {
   if (cents === null || cents === undefined) return '—';
   return (cents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
@@ -62,7 +65,10 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="min-w-0">
       <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="truncate text-sm" title={typeof children === 'string' ? children : undefined}>
+      <dd
+        className="text-sm break-words sm:truncate"
+        title={typeof children === 'string' ? children : undefined}
+      >
         {children}
       </dd>
     </div>
@@ -99,13 +105,13 @@ export function HeaderCard({
   return (
     <section className="rounded-xl bg-card p-4 text-card-foreground ring-1 ring-foreground/10">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-1">
+        <div className="min-w-0 space-y-1">
           <Button
             render={<Link href={`/queue?date=${encodeURIComponent(callDate)}`} />}
             nativeButton={false}
             variant="ghost"
             size="sm"
-            className="-ml-2"
+            className="-ml-2 h-10 sm:h-7"
           >
             <ArrowLeftIcon />
             Back to call queue
@@ -136,7 +142,7 @@ export function HeaderCard({
         <div className="text-xs">{saveStatus}</div>
       </div>
 
-      <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 border-t pt-3 sm:grid-cols-3 lg:grid-cols-4">
+      <dl className="mt-4 grid grid-cols-1 gap-x-4 gap-y-2 border-t pt-3 sm:grid-cols-3 lg:grid-cols-4">
         {job ? (
           <>
             <Fact label="Customer">{job.customerName || '—'}</Fact>
@@ -167,7 +173,7 @@ export function HeaderCard({
             onValueChange={(v) => void changeProjectType(v)}
             disabled={readOnly}
           >
-            <SelectTrigger id={id('project-type')} className="w-full">
+            <SelectTrigger id={id('project-type')} className="w-full max-sm:h-10!">
               <SelectValue placeholder="Select project type" />
             </SelectTrigger>
             <SelectContent>
@@ -182,6 +188,7 @@ export function HeaderCard({
         <div className="space-y-1.5">
           <Label htmlFor={id('customer-name')}>Customer Name</Label>
           <AutosaveInput
+            className={FIELD_CLASS}
             id={id('customer-name')}
             initialValue={checklist.customerName}
             onSave={(v) => onSaveField('customer_name', v)}
@@ -192,6 +199,7 @@ export function HeaderCard({
         <div className="space-y-1.5">
           <Label htmlFor={id('project-location')}>Project Location</Label>
           <AutosaveInput
+            className={FIELD_CLASS}
             id={id('project-location')}
             initialValue={checklist.projectLocation}
             onSave={(v) => onSaveField('project_location', v)}
@@ -202,6 +210,7 @@ export function HeaderCard({
         <div className="space-y-1.5">
           <Label htmlFor={id('project-date')}>Project Date</Label>
           <AutosaveInput
+            className={FIELD_CLASS}
             id={id('project-date')}
             type="date"
             initialValue={checklist.projectDate ?? ''}
@@ -213,6 +222,7 @@ export function HeaderCard({
         <div className="space-y-1.5">
           <Label htmlFor={id('referral')}>Referral/Project No.</Label>
           <AutosaveInput
+            className={FIELD_CLASS}
             id={id('referral')}
             initialValue={checklist.referralProjectNo}
             onSave={(v) => onSaveField('referral_project_no', v)}
@@ -223,6 +233,7 @@ export function HeaderCard({
         <div className="space-y-1.5">
           <Label htmlFor={id('call-date')}>Call date</Label>
           <AutosaveInput
+            className={FIELD_CLASS}
             id={id('call-date')}
             type="date"
             required

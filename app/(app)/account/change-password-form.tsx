@@ -13,23 +13,44 @@ export function ChangePasswordForm() {
     <form action={formAction} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="currentPassword">Current password</Label>
-        <Input id="currentPassword" name="currentPassword" type="password" autoComplete="current-password" required disabled={pending} />
+        <Input
+          id="currentPassword"
+          name="currentPassword"
+          type="password"
+          autoComplete="current-password"
+          required
+          disabled={pending}
+        />
       </div>
       <div className="space-y-2">
         <Label htmlFor="newPassword">New password</Label>
-        <Input id="newPassword" name="newPassword" type="password" autoComplete="new-password" required disabled={pending} />
+        <Input
+          id="newPassword"
+          name="newPassword"
+          type="password"
+          autoComplete="new-password"
+          required
+          disabled={pending}
+        />
       </div>
       <div className="space-y-2">
         <Label htmlFor="confirmPassword">Confirm new password</Label>
-        <Input id="confirmPassword" name="confirmPassword" type="password" autoComplete="new-password" required disabled={pending} />
+        <Input
+          id="confirmPassword"
+          name="confirmPassword"
+          type="password"
+          autoComplete="new-password"
+          required
+          disabled={pending}
+        />
       </div>
       {state?.error && (
-        <p role="alert" className="text-destructive text-sm">
+        <p role="alert" className="text-sm text-destructive">
           {state.error}
         </p>
       )}
       {state?.ok && <p className="text-sm text-green-700">Password changed.</p>}
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" className="h-10 w-full sm:h-8 sm:w-auto" disabled={pending}>
         {pending ? 'Saving…' : 'Change password'}
       </Button>
     </form>

@@ -128,3 +128,26 @@
     @apply font-sans;
   }
 }
+
+/*
+ * Phones: form controls are at least 40 px tall (touch targets) and native selects use 16 px
+ * text so iOS Safari does not zoom in on focus. Unlayered on purpose; `min-height` does not fight
+ * the `h-*` utilities, which still apply from `sm` up.
+ */
+@media (max-width: 639.98px) {
+  [data-slot='input'],
+  [data-slot='select-trigger'],
+  select {
+    min-height: 2.5rem;
+  }
+}
+@media (max-width: 767.98px) {
+  select {
+    font-size: 1rem;
+  }
+}
+
+/* Safety net against a stray wide element causing sideways page scroll; `clip` keeps sticky working. */
+body {
+  overflow-x: clip;
+}

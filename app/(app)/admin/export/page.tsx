@@ -3,6 +3,7 @@ import { buttonVariants } from '@/components/ui/button';
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { requirePageRole } from '@/src/lib/auth/session';
 import { DATASET_INFO, EXPORT_DATASETS } from '@/src/lib/export/catalog';
+import { cn } from '@/src/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +18,7 @@ function DownloadLink({
   children: string;
 }) {
   return (
-    <a href={href} download className={buttonVariants({ variant })}>
+    <a href={href} download className={cn(buttonVariants({ variant }), 'h-10 sm:h-8')}>
       <Download data-icon="inline-start" aria-hidden />
       {children}
     </a>

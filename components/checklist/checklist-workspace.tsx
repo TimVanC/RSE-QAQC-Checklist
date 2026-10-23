@@ -42,7 +42,7 @@ import {
   isTypingTarget,
   keyAction,
 } from './keyboard';
-import { ScorePanel } from './score-panel';
+import { ScorePanel, ScoreStrip } from './score-panel';
 import { ShortcutsPopover } from './shortcuts-popover';
 import { blankScoringSteps, localScore, normalizeScore } from './step-state';
 import { StepRow } from './step-row';
@@ -128,12 +128,13 @@ function CallbackSection({
     <div className="space-y-2 pt-1">
       {answeredYes && (
         <div className="flex flex-wrap items-center gap-2 rounded-md border border-red-300 bg-background/80 p-2 text-xs dark:border-red-900">
-          <span className="flex-1">
+          <span className="min-w-40 flex-1">
             A call back was incurred. Start a Call Back Checklist for the return visit.
           </span>
           <Button
             size="sm"
             variant={callbacks.length ? 'outline' : 'default'}
+            className="h-auto min-h-10 w-full py-1.5 whitespace-normal sm:h-7 sm:min-h-0 sm:w-auto sm:py-0 sm:whitespace-nowrap"
             onClick={onCreate}
             disabled={creating}
           >
@@ -458,16 +459,16 @@ export function ChecklistWorkspace({ data, currentUser }: ChecklistWorkspaceProp
   function renderFields(step: StepDef): ReactNode {
     if (!step.fields?.length) return undefined;
     return (
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-0.5">
+      <div className="flex flex-col gap-2 pt-0.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4">
         {step.fields.map((f) => (
-          <div key={f.key} className="flex items-center gap-2">
+          <div key={f.key} className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
             <Label htmlFor={`field-${f.key}`} className="text-xs font-normal text-muted-foreground">
               {f.label}
             </Label>
             <AutosaveInput
               id={`field-${f.key}`}
               type={f.type}
-              className="h-7 w-40 text-xs md:text-xs"
+              className="h-10 w-full text-base sm:h-7 sm:w-40 sm:text-xs md:text-xs"
               initialValue={fieldInitial[f.key]}
               onSave={(v) => saveFieldValue(f.key, f.type === 'date' ? v || null : v)}
               debounceMs={f.type === 'date' ? 400 : 500}
@@ -552,16 +553,19 @@ export function ChecklistWorkspace({ data, currentUser }: ChecklistWorkspaceProp
       )}
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_17rem]">
+        {/* Below lg the score is a compact strip that stays in view above the steps. */}
+        <ScoreStrip score={score} className="sticky top-0 z-10 lg:hidden" />
         <ScorePanel
           score={score}
-          className="lg:sticky lg:top-4 lg:col-start-2 lg:row-start-1 lg:self-start"
+          className="hidden lg:sticky lg:top-4 lg:col-start-2 lg:row-start-1 lg:block lg:self-start"
         />
 
         <section aria-label="Checklist steps" className="min-w-0 lg:col-start-1 lg:row-start-1">
           <div className="mb-2 flex items-center justify-between gap-2">
             <h2 className="text-sm font-medium">Steps</h2>
-            <div className="flex items-center gap-2">
-              <span className="hidden text-xs text-muted-foreground sm:inline">
+            {/* Keyboard help only where there is likely a keyboard. */}
+            <div className="hidden items-center gap-2 md:flex">
+              <span className="text-xs text-muted-foreground">
                 j/k or ↑/↓ to move · y/n/b to answer
               </span>
               <ShortcutsPopover open={helpOpen} onOpenChange={setHelpOpen} />

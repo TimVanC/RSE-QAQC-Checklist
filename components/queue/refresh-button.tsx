@@ -67,7 +67,7 @@ export function RefreshButton({ date }: { date: string }) {
   }
 
   return (
-    <Button variant="outline" size="sm" onClick={onClick} disabled={busy}>
+    <Button variant="outline" size="sm" className="h-10 sm:h-7" onClick={onClick} disabled={busy}>
       <RefreshCwIcon data-icon="inline-start" className={cn(busy && 'animate-spin')} />
       {busy ? 'Refreshing…' : 'Refresh'}
     </Button>

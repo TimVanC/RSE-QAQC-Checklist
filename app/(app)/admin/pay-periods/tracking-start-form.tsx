@@ -21,22 +21,36 @@ export function TrackingStartForm({ date }: { date: string | null }) {
         toast.error(result.error);
         return;
       }
-      toast.success(value ? `Tracking starts on ${value}.` : 'Tracking start cleared; every job counts.');
+      toast.success(
+        value ? `Tracking starts on ${value}.` : 'Tracking start cleared; every job counts.',
+      );
       router.refresh();
     });
   }
 
   return (
     <form onSubmit={onSubmit} className="flex flex-wrap items-end gap-3">
-      <div className="space-y-1.5">
+      <div className="w-full space-y-1.5 sm:w-auto">
         <Label htmlFor="tracking-start">Tracking starts on (NJ date)</Label>
-        <Input id="tracking-start" type="date" value={value} onChange={(e) => setValue(e.target.value)} className="w-44" />
+        <Input
+          id="tracking-start"
+          type="date"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          className="h-10 w-full sm:h-8 sm:w-44"
+        />
       </div>
-      <Button type="submit" disabled={pending || (value || null) === date}>
+      <Button type="submit" className="h-10 sm:h-8" disabled={pending || (value || null) === date}>
         {pending ? 'Saving…' : 'Save'}
       </Button>
       {date && (
-        <Button type="button" variant="ghost" disabled={pending} onClick={() => setValue('')}>
+        <Button
+          type="button"
+          variant="ghost"
+          className="h-10 sm:h-8"
+          disabled={pending}
+          onClick={() => setValue('')}
+        >
           Clear
         </Button>
       )}

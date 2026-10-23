@@ -54,48 +54,62 @@ export default async function QueuePage(props: PageProps<'/queue'>) {
             )}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="outline"
-            size="icon-sm"
-            aria-label="Previous day"
-            nativeButton={false}
-            render={<Link href={`/queue?date=${addDays(date, -1)}`} />}
-          >
-            <ChevronLeftIcon />
-          </Button>
-          <QueueDatePicker date={date} />
-          <Button
-            variant="outline"
-            size="icon-sm"
-            aria-label="Next day"
-            nativeButton={false}
-            render={<Link href={`/queue?date=${addDays(date, 1)}`} />}
-          >
-            <ChevronRightIcon />
-          </Button>
-          <Button
-            variant={date === today ? 'secondary' : 'outline'}
-            size="sm"
-            nativeButton={false}
-            render={<Link href="/queue" />}
-          >
-            Today
-          </Button>
-          <Separator orientation="vertical" className="mx-1 h-6 data-vertical:self-center" />
-          <SyncFreshness
-            finishedAt={lastSync?.finishedAt.toISOString() ?? null}
-            serverNow={asOf.getTime()}
-            title={syncTitle}
+        {/* Phones: date controls on one line, freshness + Refresh on the next. */}
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon-sm"
+              aria-label="Previous day"
+              className="size-10 sm:size-7"
+              nativeButton={false}
+              render={<Link href={`/queue?date=${addDays(date, -1)}`} />}
+            >
+              <ChevronLeftIcon />
+            </Button>
+            <QueueDatePicker date={date} />
+            <Button
+              variant="outline"
+              size="icon-sm"
+              aria-label="Next day"
+              className="size-10 sm:size-7"
+              nativeButton={false}
+              render={<Link href={`/queue?date=${addDays(date, 1)}`} />}
+            >
+              <ChevronRightIcon />
+            </Button>
+            <Button
+              variant={date === today ? 'secondary' : 'outline'}
+              size="sm"
+              className="h-10 sm:h-7"
+              nativeButton={false}
+              render={<Link href="/queue" />}
+            >
+              Today
+            </Button>
+          </div>
+          <Separator
+            orientation="vertical"
+            className="mx-1 hidden h-6 sm:block data-vertical:self-center"
           />
-          <RefreshButton date={date} />
+          <div className="flex items-center justify-between gap-2 sm:justify-start">
+            <SyncFreshness
+              finishedAt={lastSync?.finishedAt.toISOString() ?? null}
+              serverNow={asOf.getTime()}
+              title={syncTitle}
+            />
+            <RefreshButton date={date} />
+          </div>
         </div>
       </div>
 
       {openError && (
-        <div role="alert" className="flex items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          <InfoIcon className="size-4 shrink-0" />
-          Could not open the checklist: {openError}
+        <div
+          role="alert"
+          className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+        >
+          <InfoIcon className="mt-0.5 size-4 shrink-0" />
+          <span className="min-w-0 break-words">Could not open the checklist: {openError}</span>
         </div>
       )}
 

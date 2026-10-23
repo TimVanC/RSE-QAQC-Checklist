@@ -42,7 +42,7 @@ export function PayPeriodRuleForm(props: { cadence: string; anchor: string }) {
           id="pp-cadence"
           value={cadence}
           onChange={(e) => setCadence(e.target.value)}
-          className="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm"
+          className="h-10 w-full rounded-lg border border-input bg-background px-2 text-base sm:h-8 md:text-sm"
         >
           {CADENCE_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
@@ -61,7 +61,7 @@ export function PayPeriodRuleForm(props: { cadence: string; anchor: string }) {
           onChange={(e) => setAnchor(e.target.value)}
         />
       </div>
-      <Button type="submit" disabled={pending || !dirty || !anchor}>
+      <Button type="submit" className="h-10 sm:h-8" disabled={pending || !dirty || !anchor}>
         {pending ? 'Saving…' : 'Save rule'}
       </Button>
       {cadence === 'monthly' && (

@@ -12,10 +12,14 @@ const ADMIN_NAV = [
   { href: '/admin/export', label: 'Export' },
 ];
 
+/** Admin sub-navigation; on narrow screens it scrolls sideways (no visible scrollbar) instead of wrapping. */
 export function AdminNav() {
   const pathname = usePathname();
   return (
-    <nav aria-label="Admin" className="flex items-center gap-1 border-b pb-3 text-sm">
+    <nav
+      aria-label="Admin"
+      className="-mx-4 flex [scrollbar-width:none] items-center gap-1 overflow-x-auto overscroll-x-contain border-b px-4 pb-3 text-sm sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden"
+    >
       {ADMIN_NAV.map((item) => {
         const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
         return (
@@ -25,7 +29,9 @@ export function AdminNav() {
             nativeButton={false}
             variant={active ? 'secondary' : 'ghost'}
             size="sm"
-            className={active ? 'rounded-full font-semibold' : 'rounded-full'}
+            className={
+              active ? 'h-10 rounded-full font-semibold sm:h-7' : 'h-10 rounded-full sm:h-7'
+            }
           >
             {item.label}
           </Button>
