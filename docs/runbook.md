@@ -15,7 +15,7 @@ Contents: [1 Environments and secrets](#1-environments-and-secrets) |
 
 | Thing | Value |
 |---|---|
-| Production URL | `https://rse-qaqc-checklist.vercel.app` |
+| Production URL | `https://rseqaqc.com` (custom domain, registered at Porkbun). `https://www.rseqaqc.com` 308-redirects to it; `https://rse-qaqc-checklist.vercel.app` still serves the same deployment. |
 | Vercel | project `rse-qaqc-checklist`, team `tims-projects-6e08583a`, Hobby plan (daily crons only). The repo is linked (`.vercel/project.json`), so run Vercel CLI commands from the repo root. The Vercel MCP token is read-only: change project settings with the CLI. |
 | Neon | project `rse-qaqc-checklist` (id `steep-darkness-94412656`), database `rse_qaqc`, branch `main`. Managed Better Auth is on; login emails use Neon's shared sender for now. |
 | Deploys | A push to `main` deploys to production. |
@@ -186,28 +186,28 @@ curl -i -X POST https://rse-qaqc-checklist.vercel.app/api/webhooks/hcp
 
 - [ ] `/admin/users` > Invite for Ron, Relene and the call team, with roles from section 4. Each person gets a link that expires in 15 minutes; use Resend link if it lapses.
 
-### 2.10 Custom subdomain
+### 2.10 Custom domain (done 2026-10-23: rseqaqc.com)
 
-- [ ] Add the domain to the project (example host from the planning docs: `checklist.rseenergygroup.com`):
+The app is served at `https://rseqaqc.com`. What was set up, in case it has to be repeated for another host:
 
-```bash
-vercel domains add <subdomain> rse-qaqc-checklist
-```
-
-- [ ] Ask whoever manages RSE DNS to create the CNAME record Vercel shows for it (Project > Settings > Domains, or the command below):
+- [x] Domain registered at Porkbun (Tim's account). DNS there: `A @ 76.76.21.21` and `CNAME www cname.vercel-dns.com` (Porkbun's default parking records were removed).
+- [x] Both hosts added to the Vercel project; `www` redirects to the apex with a 308:
 
 ```bash
-vercel domains inspect <subdomain>
+vercel domains add rseqaqc.com rse-qaqc-checklist
+vercel domains add www.rseqaqc.com rse-qaqc-checklist
 ```
 
-- [ ] Once HTTPS works, add `https://<subdomain>` as a trusted origin in the Neon Auth settings (the same Better Auth page). Keep the `.vercel.app` origin.
-- [ ] Point the app at the new host, then redeploy (section 1):
+- [x] `NEXT_PUBLIC_APP_URL` (production) set to `https://rseqaqc.com`, so password-reset links use the new host. It is frozen at build time, so the next deploy picks it up.
+- [ ] Add `https://rseqaqc.com` as a trusted origin in Neon Auth (Neon console > project > Auth > Better Auth settings). Keep the `.vercel.app` origin. Until this is done, sign-in on the new host may be rejected by Better Auth's origin check.
+- [ ] Optional: change the HCP webhook URL to `https://rseqaqc.com/api/webhooks/hcp`. Not required; the `.vercel.app` URL keeps working.
+
+Check from any machine:
 
 ```bash
-vercel env add NEXT_PUBLIC_APP_URL production --force
+curl -s -o /dev/null -w '%{http_code} %{redirect_url}
+' https://www.rseqaqc.com/login
 ```
-
-- [ ] Confirm the new host serves `/api/webhooks/hcp` and `/api/cron/reconcile` without a Vercel login page (use the curl in 2.6). The HCP webhook can stay on the `.vercel.app` URL.
 
 ### 2.11 Repository visibility
 

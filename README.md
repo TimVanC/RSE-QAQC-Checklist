@@ -4,7 +4,7 @@ Private web app that replaces RSE Energy Group's per-employee Excel QA/QC checkl
 read-only from Housecall Pro (HCP). The call team, working from New Jersey-day queues, fills an
 Appointment/Service Call Checklist (34 steps plus sub-items, 44 answerable items) and Call Back Checklists for each
 job; scores follow the workbook formulas; managers track completion and production per technician and pay period.
-Production: https://rse-qaqc-checklist.vercel.app (invite only).
+Production: https://rseqaqc.com (invite only; https://rse-qaqc-checklist.vercel.app serves the same deployment).
 
 ## Status
 
