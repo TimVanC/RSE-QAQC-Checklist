@@ -132,6 +132,11 @@ function TechnicianCard({ group }: { group: TrackerGroup }) {
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <StatusChip job={job} />
+                    {job.failures.length > 0 && (
+                      <Badge variant="destructive" title="Failure flags on this checklist (workbook Red)">
+                        Failed: {job.failures.join(', ')}
+                      </Badge>
+                    )}
                     {job.callbackCount > 0 && (
                       <span className="text-xs text-muted-foreground">
                         + {plural(job.callbackCount, 'call back')}

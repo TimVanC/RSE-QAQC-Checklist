@@ -114,6 +114,11 @@ function JobRow({ job }: { job: QueueJob }) {
           <ChecklistIcon data-icon="inline-start" />
           {checklist.label}
         </Badge>
+        {job.failures.length > 0 && (
+          <Badge variant="destructive" title="Failure flags on this checklist (workbook Red)">
+            Failed: {job.failures.join(', ')}
+          </Badge>
+        )}
         {job.callbackCount > 0 && (
           <Badge
             variant="outline"

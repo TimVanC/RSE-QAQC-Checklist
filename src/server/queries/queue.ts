@@ -2,7 +2,7 @@ import 'server-only';
 import { and, desc, eq, gte, isNotNull, isNull, lt } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { getDb } from '@/src/db';
-import { checklists } from '@/src/db/schema/checklists';
+import { checklistScores, checklists } from '@/src/db/schema/checklists';
 import { hcpJobAssignees, hcpJobs, technicians } from '@/src/db/schema/hcp';
 import { appSettings, syncRuns, webhookEvents, type SyncRun } from '@/src/db/schema/system';
 import { appDayRange, type IsoDate } from '@/src/lib/time';
@@ -72,6 +72,10 @@ export async function getQueueForDate(date: IsoDate): Promise<QueueForDate> {
       checklistStatus: task.status,
       checklistSubmittedAt: task.submittedAt,
       checklistUpdatedAt: task.updatedAt,
+      failOpsCheck: checklistScores.failOpsCheck,
+      failQaqc: checklistScores.failQaqc,
+      failToolControl: checklistScores.failToolControl,
+      failCallback: checklistScores.failCallback,
       callbackCount: db.$count(
         checklists,
         and(eq(checklists.hcpJobId, hcpJobs.hcpJobId), eq(checklists.type, 'callback')),
@@ -85,6 +89,7 @@ export async function getQueueForDate(date: IsoDate): Promise<QueueForDate> {
       and(eq(technicians.id, hcpJobAssignees.technicianId), eq(technicians.isTechnician, true)),
     )
     .leftJoin(task, and(eq(task.hcpJobId, hcpJobs.hcpJobId), eq(task.type, 'task')))
+    .leftJoin(checklistScores, eq(checklistScores.checklistId, task.id))
     .where(
       and(
         gte(hcpJobs.scheduledStart, start),

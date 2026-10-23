@@ -3,6 +3,7 @@
  * No database or server-only imports, so it is unit tested directly (tests/server/queue.test.ts).
  */
 import type { ChecklistStatus } from '@/src/db/schema/enums';
+import { failureLabels } from '@/src/lib/scoring/failure-labels';
 
 /** Display status of a job's task checklist: `not_started` when no checklist row exists yet. */
 export type ChecklistDisplayStatus = ChecklistStatus;
@@ -34,6 +35,10 @@ export interface QueueRow {
   checklistStatus: ChecklistStatus | null;
   checklistSubmittedAt: Date | null;
   checklistUpdatedAt: Date | null;
+  failOpsCheck?: number | null;
+  failQaqc?: number | null;
+  failToolControl?: number | null;
+  failCallback?: number | null;
   callbackCount: number;
 }
 
@@ -62,6 +67,8 @@ export interface QueueJob {
   /** The job's task checklist, or null when nobody has opened it yet. */
   checklist: QueueChecklist | null;
   checklistStatus: ChecklistDisplayStatus;
+  /** Workbook failure flags currently set on the checklist (empty when clean or not started). */
+  failures: string[];
   callbackCount: number;
 }
 
@@ -166,6 +173,7 @@ function toJob(row: QueueRow): QueueJob {
     totalAmountCents: row.totalAmountCents,
     checklist,
     checklistStatus: checklist?.status ?? 'not_started',
+    failures: failureLabels(row),
     callbackCount: row.callbackCount,
   };
 }

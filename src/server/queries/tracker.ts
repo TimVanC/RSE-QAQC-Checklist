@@ -2,8 +2,9 @@ import 'server-only';
 import { and, asc, eq, gte, isNull, lt, notIlike } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { getDb } from '@/src/db';
-import { checklists } from '@/src/db/schema/checklists';
+import { checklistScores, checklists } from '@/src/db/schema/checklists';
 import type { ChecklistStatus } from '@/src/db/schema/enums';
+import { failureLabels } from '@/src/lib/scoring/failure-labels';
 import { hcpJobAssignees, hcpJobs, technicians } from '@/src/db/schema/hcp';
 import { appSettings } from '@/src/db/schema/system';
 import type { PayPeriodSpan } from '@/src/lib/pay-periods';
@@ -33,6 +34,10 @@ export interface TrackerRow {
   scheduledStart: Date | null;
   checklistId: string | null;
   checklistStatus: ChecklistStatus | null;
+  failOpsCheck?: number | null;
+  failQaqc?: number | null;
+  failToolControl?: number | null;
+  failCallback?: number | null;
   callbackCount: number;
 }
 
@@ -45,6 +50,8 @@ export interface TrackerJob {
   checklistId: string | null;
   checklistStatus: ChecklistStatus | null;
   status: TrackerStatus;
+  /** Workbook failure flags currently set on the checklist. */
+  failures: string[];
   callbackCount: number;
 }
 
@@ -141,6 +148,7 @@ export function buildTracker(input: {
       checklistId: row.checklistId,
       checklistStatus: row.checklistStatus,
       status: trackerStatus(row.checklistStatus),
+      failures: failureLabels(row),
       callbackCount: Number(row.callbackCount) || 0,
     });
   }
@@ -200,6 +208,10 @@ export async function getTracker(
       scheduledStart: hcpJobs.scheduledStart,
       checklistId: task.id,
       checklistStatus: task.status,
+      failOpsCheck: checklistScores.failOpsCheck,
+      failQaqc: checklistScores.failQaqc,
+      failToolControl: checklistScores.failToolControl,
+      failCallback: checklistScores.failCallback,
       callbackCount: db.$count(
         checklists,
         and(eq(checklists.hcpJobId, hcpJobs.hcpJobId), eq(checklists.type, 'callback')),
@@ -216,6 +228,7 @@ export async function getTracker(
       ),
     )
     .leftJoin(task, and(eq(task.hcpJobId, hcpJobs.hcpJobId), eq(task.type, 'task')))
+    .leftJoin(checklistScores, eq(checklistScores.checklistId, task.id))
     .where(
       and(
         gte(hcpJobs.scheduledStart, start),

@@ -398,9 +398,11 @@ export function ChecklistWorkspace({ data, currentUser }: ChecklistWorkspaceProp
     setSubmittedAt(new Date().toISOString());
     setSubmittedByName(currentUser.name);
     toast.success('Checklist submitted.');
+    // Back to the day's call queue so the caller can move to the next job.
+    router.push(`/queue?date=${encodeURIComponent(callDate)}`);
     router.refresh();
     return true;
-  }, [applyValues, checklistId, currentUser.name, enqueue, router]);
+  }, [applyValues, callDate, checklistId, currentUser.name, enqueue, router]);
 
   const handleReopen = useCallback(async (): Promise<boolean> => {
     const res = await enqueue(() => reopenChecklist(checklistId));
