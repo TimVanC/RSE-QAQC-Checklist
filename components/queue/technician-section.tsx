@@ -15,8 +15,10 @@ import { formatApp } from '@/src/lib/time';
 import { cn } from '@/src/lib/utils';
 
 // Time | Customer | Job | Job status | Checklist | action
+// Every track has a fixed or fr width so the header row and the job rows line up exactly
+// (an `auto` last track would collapse in the header, where it is empty, and shift the labels).
 const ROW_GRID =
-  'lg:grid-cols-[8.5rem_minmax(0,1.4fr)_minmax(0,1fr)_6.5rem_minmax(0,11rem)_auto] lg:items-center lg:gap-x-4';
+  'lg:grid-cols-[8.5rem_minmax(0,1.4fr)_minmax(0,1fr)_7rem_minmax(0,12rem)_8.5rem] lg:items-center lg:gap-x-4';
 
 const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 
@@ -59,7 +61,7 @@ function JobRow({ job }: { job: QueueJob }) {
   const ChecklistIcon =
     job.checklistStatus === 'submitted' ? ClipboardCheckIcon : ClipboardListIcon;
   const meta = [
-    job.invoiceNumber ? `#${job.invoiceNumber}` : null,
+    job.jobTypeName,
     job.totalAmountCents ? usd.format(job.totalAmountCents / 100) : null,
   ].filter(Boolean);
 
@@ -82,7 +84,7 @@ function JobRow({ job }: { job: QueueJob }) {
         )}
       </div>
       <div className={cn('min-w-0', job.workState === 'canceled' && 'opacity-60')}>
-        <div className="truncate">{job.jobTypeName ?? 'No job type'}</div>
+        <div className="truncate font-medium tabular-nums">{job.invoiceNumber ? `#${job.invoiceNumber}` : 'No job number'}</div>
         {(meta.length > 0 || job.tags.length > 0) && (
           <div className="mt-0.5 flex flex-wrap items-center gap-1">
             {meta.length > 0 && (
@@ -179,7 +181,7 @@ export function TechnicianSection({ group }: { group: QueueGroup }) {
           <span>Job</span>
           <span>Job status</span>
           <span>Checklist</span>
-          <span />
+          <span className="sr-only">Action</span>
         </div>
         {group.jobs.map((job, i) => (
           <Fragment key={job.hcpJobId}>
