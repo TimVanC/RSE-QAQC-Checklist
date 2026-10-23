@@ -1,10 +1,10 @@
 import 'server-only';
-import { and, eq, gte, lte } from 'drizzle-orm';
+import { and, eq, gte, inArray, lte } from 'drizzle-orm';
 import type { ChecklistType } from '@/src/config/checklist-steps';
 import { getDb } from '@/src/db';
 import { checklistScores, checklists } from '@/src/db/schema/checklists';
 import type { ChecklistStatus } from '@/src/db/schema/enums';
-import { technicians } from '@/src/db/schema/hcp';
+import { hcpJobAssignees, technicians } from '@/src/db/schema/hcp';
 import type { PayPeriodSpan } from '@/src/lib/pay-periods';
 import type { Flag } from '@/src/lib/scoring/checklist-score';
 import {
@@ -23,7 +23,13 @@ export interface ProductionTechnician {
 
 /** One checklist in the period with its stored score (score columns are null without a score row). */
 export interface ProductionChecklistRow {
+  /** Technician the checklist was created for (fallback when no assignees are known). */
   technicianId: string | null;
+  /**
+   * Every technician assigned to the job in Housecall Pro. A shared job credits each of them
+   * (as it would appear in each of their workbooks); totals still count the checklist once.
+   */
+  technicianIds?: readonly string[];
   type: ChecklistType;
   status: ChecklistStatus;
   serviceQuote: number | null;
@@ -96,11 +102,16 @@ export function buildProduction(
 ): Production {
   const known = new Map(techs.map((t) => [t.id, t]));
   const byTech = new Map<string | null, ProductionChecklistRow[]>();
-  for (const row of rows) {
-    const key = row.technicianId && known.has(row.technicianId) ? row.technicianId : null;
+  const add = (key: string | null, row: ProductionChecklistRow) => {
     const list = byTech.get(key);
     if (list) list.push(row);
     else byTech.set(key, [row]);
+  };
+  for (const row of rows) {
+    const candidates = row.technicianIds?.length ? row.technicianIds : row.technicianId ? [row.technicianId] : [];
+    const keys = [...new Set(candidates.filter((id) => known.has(id)))];
+    if (keys.length === 0) add(null, row);
+    for (const key of keys) add(key, row);
   }
 
   const listed = techs
@@ -130,9 +141,10 @@ export async function getProduction(
   period: Pick<PayPeriodSpan, 'start_date' | 'end_date'>,
 ): Promise<Production> {
   const db = getDb();
-  const [rows, techs] = await Promise.all([
+  const [rawRows, techs] = await Promise.all([
     db
       .select({
+        hcpJobId: checklists.hcpJobId,
         technicianId: checklists.technicianId,
         type: checklists.type,
         status: checklists.status,
@@ -157,5 +169,26 @@ export async function getProduction(
       })
       .from(technicians),
   ]);
+
+  // Every technician assigned to each job, so shared jobs credit everyone on them.
+  const jobIds = [...new Set(rawRows.map((r) => r.hcpJobId))];
+  const assigneeRows =
+    jobIds.length === 0
+      ? []
+      : await db
+          .select({ hcpJobId: hcpJobAssignees.hcpJobId, technicianId: hcpJobAssignees.technicianId })
+          .from(hcpJobAssignees)
+          .innerJoin(technicians, and(eq(technicians.id, hcpJobAssignees.technicianId), eq(technicians.isTechnician, true)))
+          .where(inArray(hcpJobAssignees.hcpJobId, jobIds));
+  const assigneesByJob = new Map<string, string[]>();
+  for (const a of assigneeRows) {
+    const list = assigneesByJob.get(a.hcpJobId);
+    if (list) list.push(a.technicianId);
+    else assigneesByJob.set(a.hcpJobId, [a.technicianId]);
+  }
+  const rows: ProductionChecklistRow[] = rawRows.map(({ hcpJobId, ...row }) => ({
+    ...row,
+    technicianIds: assigneesByJob.get(hcpJobId) ?? [],
+  }));
   return buildProduction(techs, rows);
 }

@@ -178,4 +178,25 @@ describe('buildProduction', () => {
     const production = buildProduction(TECHS, [cl('t-deleted', WORKBOOK.task1)]);
     expect(production.rows.at(-1)).toMatchObject({ technicianId: null, checklists: 1 });
   });
+
+  it('credits a shared job to every assigned technician but counts it once in the totals', () => {
+    const shared: ProductionChecklistRow = { ...cl('t-marcus', WORKBOOK.task1), technicianIds: ['t-marcus', 't-dana'] };
+    const production = buildProduction(TECHS, [shared]);
+    const marcus = production.rows.find((r) => r.technicianId === 't-marcus');
+    const dana = production.rows.find((r) => r.technicianId === 't-dana');
+    expect(marcus?.rollup.total_completed).toBe(1);
+    expect(dana?.rollup.total_completed).toBe(1);
+    expect(marcus?.submitted).toBe(1);
+    expect(dana?.submitted).toBe(1);
+    expect(production.totals.rollup.total_completed).toBe(1);
+    expect(production.totals.checklists).toBe(1);
+  });
+
+  it('falls back to the checklist technician when no assignees are known, and to unassigned when neither is', () => {
+    const noAssignees = { ...cl('t-dana', WORKBOOK.task1), technicianIds: [] };
+    const unknownOnly = { ...cl(null, WORKBOOK.task2), technicianIds: ['t-deleted'] };
+    const production = buildProduction(TECHS, [noAssignees, unknownOnly]);
+    expect(production.rows.find((r) => r.technicianId === 't-dana')?.checklists).toBe(1);
+    expect(production.rows.at(-1)).toMatchObject({ technicianId: null, checklists: 1 });
+  });
 });
