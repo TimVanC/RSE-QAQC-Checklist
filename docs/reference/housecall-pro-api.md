@@ -69,7 +69,7 @@ duplicate rows while data changes; tolerate duplicates via upsert.
 - Job types configured: `Diagnostic`, `HVAC Replacement`, `Install`, `Repair`. Only the second maps to a Project Type automatically; the caller picks the rest (open question 4).
 - Work statuses seen in the 300 most recently updated jobs: `scheduled` 243, `complete rated` 24, `pro canceled` 14, `complete unrated` 8, `in progress` 6, `user canceled` 3, `needs scheduling` 2.
 - Every job's `updated_at` read `2026-10-23T16:56:41Z` at first contact (an account-wide touch), so the first updated-since scan sees everything once.
-- **Money unit still unconfirmed**: the sampled jobs and their invoice had `total_amount` and `amount` of 0. Check the first non-zero invoice after the backfill (`select amount_cents, raw_json->'amount' from hcp_invoices where amount_cents > 0 limit 3`).
+- **Money is in cents and the read-only key returns it**: job 4641 shows `total_amount: 67160` with an open invoice of 67160 ($671.60); job 4699 shows a paid invoice of 143360 with one payment. The zeros seen at first were real: future scheduled jobs have no line items yet, and the two old sampled jobs were $0 jobs. Note that unscheduled jobs ("needs scheduling") have no `scheduled_start`, so they only enter the mirror through the updated-since scan or a webhook, never through a date window.
 
 ## Sync caveats
 - No incremental `updated_at` filter on jobs. Use windowed `scheduled_start_min/max` queries plus
