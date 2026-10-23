@@ -1,5 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { computeHcpSignature, verifyHcpSignature, webhookDedupeKey } from '@/src/lib/hcp/webhooks';
+import { computeHcpSignature, isVerificationProbe, verifyHcpSignature, webhookDedupeKey } from '@/src/lib/hcp/webhooks';
+
+describe('isVerificationProbe', () => {
+  it('accepts only the exact {"foo":"bar"} body', () => {
+    expect(isVerificationProbe('{"foo":"bar"}')).toBe(true);
+    expect(isVerificationProbe('{"foo": "bar"}')).toBe(true);
+    expect(isVerificationProbe('{"foo":"bar","event":"job.updated"}')).toBe(false);
+    expect(isVerificationProbe('{"event":"job.updated","job":{"id":"j"}}')).toBe(false);
+    expect(isVerificationProbe('{"foo":"baz"}')).toBe(false);
+    expect(isVerificationProbe('["foo"]')).toBe(false);
+    expect(isVerificationProbe('not json')).toBe(false);
+    expect(isVerificationProbe('')).toBe(false);
+  });
+});
 
 const secret = 'whsec_test_secret_value';
 const body = JSON.stringify({ company_id: 'c1', event: 'job.updated', job: { id: 'job_1' } });

@@ -68,6 +68,23 @@ export function verifyHcpSignature(opts: VerifyOptions): VerifyResult {
   return { ok: false, reason: 'bad_signature' };
 }
 
+/**
+ * Housecall Pro verifies a new webhook URL by POSTing exactly {"foo":"bar"} before it issues the
+ * signing secret. Only that body qualifies; anything else must be signed.
+ */
+export function isVerificationProbe(rawBody: string): boolean {
+  if (rawBody.length > 200) return false;
+  try {
+    const parsed = JSON.parse(rawBody) as unknown;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return false;
+    const record = parsed as Record<string, unknown>;
+    const keys = Object.keys(record);
+    return keys.length === 1 && keys[0] === 'foo' && record.foo === 'bar';
+  } catch {
+    return false;
+  }
+}
+
 /** Stable key used to drop duplicate deliveries of the same event. */
 export function webhookDedupeKey(event: string, entityId: string | undefined, occurredAt: string | undefined) {
   return `${event}:${entityId ?? '-'}:${occurredAt ?? '-'}`;
