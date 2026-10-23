@@ -52,7 +52,7 @@ export function PayPeriodRuleForm(props: { cadence: string; anchor: string }) {
         </select>
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="pp-anchor">Anchor (first day of a period)</Label>
+        <Label htmlFor="pp-anchor">First day of any one pay period</Label>
         <Input
           id="pp-anchor"
           type="date"

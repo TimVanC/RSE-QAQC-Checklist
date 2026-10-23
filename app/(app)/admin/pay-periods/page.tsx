@@ -1,11 +1,9 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { requirePageRole } from '@/src/lib/auth/session';
 import { periodForDate } from '@/src/lib/pay-periods';
-import { compareDates, todayAppDate } from '@/src/lib/time';
-import { getPayPeriodRule, listPayPeriods } from '@/src/server/queries/pay-periods';
+import { todayAppDate } from '@/src/lib/time';
+import { getPayPeriodRule } from '@/src/server/queries/pay-periods';
 import { getTrackingStartDate } from '@/src/server/queries/settings';
-import { GeneratePeriods } from './generate-periods';
-import { PeriodsTable } from './periods-table';
 import { PayPeriodRuleForm } from './rule-form';
 import { TrackingStartForm } from './tracking-start-form';
 
@@ -13,28 +11,26 @@ export const dynamic = 'force-dynamic';
 
 export default async function AdminPayPeriodsPage() {
   await requirePageRole('admin');
-  const [rule, periods, trackingStart] = await Promise.all([getPayPeriodRule(), listPayPeriods(), getTrackingStartDate()]);
-  const today = todayAppDate();
-  const current = periodForDate(rule, today);
+  const [rule, trackingStart] = await Promise.all([getPayPeriodRule(), getTrackingStartDate()]);
+  const current = periodForDate(rule, todayAppDate());
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Pay periods</h1>
         <p className="max-w-3xl text-sm text-muted-foreground">
-          Pay periods decide which jobs a technician must have submitted checklists for. Default is
-          biweekly from Monday July 6, 2026 (go-live) until Ron confirms.
+          Checklists must be submitted before the end of each pay period to validate pay. The Completion
+          tracker and Production pages group jobs by these periods. Set how often RSE pays and the first day of
+          any one period; every other period follows from that.
         </p>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Rule</CardTitle>
+            <CardTitle>Pay schedule</CardTitle>
             <CardDescription>
-              Under this rule, today falls in{' '}
-              <span className="text-foreground">{current.label}</span>. Changing the rule does not
-              change periods already stored; delete those and generate again.
+              Today falls in <span className="text-foreground">{current.label}</span>.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -43,48 +39,17 @@ export default async function AdminPayPeriodsPage() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Generate periods</CardTitle>
+            <CardTitle>Tracking start</CardTitle>
             <CardDescription>
-              Stores every period from one month ago to the chosen number of months ahead, using the
-              saved rule. Periods already stored are kept.
+              The first day the tracker counts. Jobs before it were handled in the old workbooks and are not shown
+              as missing. Leave blank to count every job.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <GeneratePeriods />
+            <TrackingStartForm date={trackingStart} />
           </CardContent>
         </Card>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Tracking start</CardTitle>
-          <CardDescription>
-            The first New Jersey day the completion tracker counts. Jobs before it were tracked in the old
-            workbooks (or predate this app) and are not shown as missing. Leave blank to count every job.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <TrackingStartForm date={trackingStart} />
-        </CardContent>
-      </Card>
-
-      <section className="space-y-2">
-        <div className="flex flex-wrap items-baseline gap-x-3">
-          <h2 className="text-sm font-semibold">Stored periods</h2>
-          <span className="text-xs text-muted-foreground">
-            {periods.length} stored. Dates without a stored period use the rule.
-          </span>
-        </div>
-        <PeriodsTable
-          periods={periods.map((p) => ({
-            id: p.id,
-            label: p.label,
-            startDate: p.startDate,
-            endDate: p.endDate,
-            current: compareDates(p.startDate, today) <= 0 && compareDates(today, p.endDate) <= 0,
-          }))}
-        />
-      </section>
     </div>
   );
 }

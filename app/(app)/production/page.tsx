@@ -45,18 +45,19 @@ function Cells({ line }: { line: ProductionLine }) {
 }
 
 const HEADERS: Array<{ label: string; title: string }> = [
-  { label: 'Service quotes', title: 'Task checklists with step 2 = Y (workbook D9)' },
-  { label: 'In progress', title: 'Step 17 = Y minus completed (workbook D10)' },
-  { label: 'Completed', title: 'Step 34 = Y (workbook D11)' },
-  { label: 'Call backs', title: 'Call back checklists; not part of the other figures' },
-  { label: 'Approved %', title: '(In progress + Completed) / Service quotes (D14)' },
-  { label: 'Declined %', title: '100 - Approved % (D15)' },
-  { label: 'In progress %', title: 'In progress / Service quotes (D16)' },
-  { label: 'Completed %', title: 'Completed / Service quotes (D17)' },
+  // Labels are the workbook's own (Employee Production (Monthly) tab); the two app-only columns are marked.
+  { label: 'Total Service Call/Quotes', title: 'Checklists with step 2 = Y (workbook D9)' },
+  { label: 'Total In-Progress', title: 'Step 17 = Y minus completed (workbook D10)' },
+  { label: 'Total Tasks Completed', title: 'Step 34 = Y (workbook D11)' },
+  { label: 'Call Backs', title: 'App only: Call Back checklists; not part of the workbook figures' },
+  { label: 'Service Calls/Quotes (Approved)', title: '(In-Progress + Completed) / Service Call/Quotes × 100 (D14)' },
+  { label: 'Service Calls/Quotes (Declined)', title: '100 − Approved (D15)' },
+  { label: 'Projects (In-Progress)', title: 'In-Progress / Service Call/Quotes × 100 (D16)' },
+  { label: 'Projects (Completed)', title: 'Completed / Service Call/Quotes × 100 (D17)' },
   { label: 'Black', title: 'Perfect tasks: completed with no failure flags (B20)' },
   { label: 'Red', title: 'Tasks with at least one failure flag (B21)' },
-  { label: 'Bottom line %', title: 'Black / (Black + Red) (B23)' },
-  { label: 'Submitted', title: 'Submitted checklists (task and call back) of all checklists' },
+  { label: 'Bottom Line', title: 'Black / (Black + Red) × 100 (B23)' },
+  { label: 'Submitted', title: 'App only: submitted checklists of all checklists for the technician' },
 ];
 
 export default async function ProductionPage(props: PageProps<'/production'>) {
