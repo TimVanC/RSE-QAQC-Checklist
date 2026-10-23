@@ -18,7 +18,9 @@
     "db:seed": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx src/db/seed.ts",
     "dev:seed-hcp": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/dev/seed-hcp-sample.ts",
     "hcp:verify": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/verify-hcp.ts",
-    "test:db": "node --env-file-if-exists=.env.local --conditions=react-server node_modules/vitest/vitest.mjs run --config vitest.db.config.ts"
+    "test:db": "node --env-file-if-exists=.env.local --conditions=react-server node_modules/vitest/vitest.mjs run --config vitest.db.config.ts",
+    "dev:remove-sample": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/dev/remove-sample-data.ts",
+    "sync": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/run-sync.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

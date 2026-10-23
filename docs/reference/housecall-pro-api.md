@@ -60,6 +60,17 @@ duplicate rows while data changes; tolerate duplicates via upsert.
 - 429 on limit; response carries `RateLimit-Reset` (epoch). No numeric limit, no `Retry-After` documented.
 - Client policy: concurrency 2, exponential backoff with jitter (1s, 2s, 4s, 8s, 16s), honour `RateLimit-Reset`/`Retry-After` when present, max 5 attempts, also retry 5xx and network errors.
 
+## Day-1 verification against RSE's real account (2026-10-23, `npm run hcp:verify`)
+
+- Company `time_zone` is `America/New_York`.
+- **Timestamps are UTC with a trailing `Z`** on every field inspected: `schedule.scheduled_start/end`, `work_timestamps.on_my_way_at/started_at/completed_at`, `created_at`, `updated_at`, and appointment `start_time/end_time` (`start_date` was null). `scheduled_start_local` carries the `-04:00` offset. The naive-timestamp fallback in `parseHcpTimestamp` is therefore unused in practice.
+- `page_size` 50, 100 and 200 are all honoured.
+- Employees: 9 active, roles seen `field tech` (4), `admin` (4), `office staff` (1). Jobs carry several assignees including an `admin` person; the `is_technician` rule keeps only `field tech` in the queue.
+- Job types configured: `Diagnostic`, `HVAC Replacement`, `Install`, `Repair`. Only the second maps to a Project Type automatically; the caller picks the rest (open question 4).
+- Work statuses seen in the 300 most recently updated jobs: `scheduled` 243, `complete rated` 24, `pro canceled` 14, `complete unrated` 8, `in progress` 6, `user canceled` 3, `needs scheduling` 2.
+- Every job's `updated_at` read `2026-10-23T16:56:41Z` at first contact (an account-wide touch), so the first updated-since scan sees everything once.
+- **Money unit still unconfirmed**: the sampled jobs and their invoice had `total_amount` and `amount` of 0. Check the first non-zero invoice after the backfill (`select amount_cents, raw_json->'amount' from hcp_invoices where amount_cents > 0 limit 3`).
+
 ## Sync caveats
 - No incremental `updated_at` filter on jobs. Use windowed `scheduled_start_min/max` queries plus
   `sort_by=updated_at&sort_direction=desc` scans down to a watermark for "anything changed recently".
