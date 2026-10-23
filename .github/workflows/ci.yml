@@ -41,3 +41,5 @@ jobs:
         env:
           DATABASE_URL: postgres://placeholder
           NEXT_PUBLIC_APP_URL: http://localhost:3000
+          NEON_AUTH_BASE_URL: https://placeholder.invalid/auth
+          NEON_AUTH_COOKIE_SECRET: ci-placeholder-cookie-secret-32-chars-min
