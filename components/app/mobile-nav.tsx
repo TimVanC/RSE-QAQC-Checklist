@@ -1,6 +1,6 @@
 'use client';
 
-import { LogOutIcon, MenuIcon, UserIcon } from 'lucide-react';
+import { LifeBuoyIcon, LogOutIcon, MenuIcon, UserIcon } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
@@ -15,6 +15,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
+import { SUPPORT_MAILTO } from '@/src/config/support';
 import type { Role } from '@/src/db/schema/enums';
 import { cn } from '@/src/lib/utils';
 import { signOutAction } from '@/src/server/actions/auth';
@@ -89,6 +90,17 @@ export function MobileNav({
           <div className="flex items-center gap-2 px-3 text-sm text-muted-foreground">
             Role <Badge variant="secondary">{roleLabel}</Badge>
           </div>
+          <a
+            href={SUPPORT_MAILTO}
+            title="Email Tim about a problem with the app"
+            className={cn(
+              buttonVariants({ variant: 'ghost' }),
+              'h-11 justify-start gap-2 px-3 text-base',
+            )}
+          >
+            <LifeBuoyIcon />
+            Support
+          </a>
         </div>
 
         <div className="mt-auto border-t p-3">

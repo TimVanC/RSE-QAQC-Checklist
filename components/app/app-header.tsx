@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ROLE_LABELS } from '@/src/lib/auth/roles';
 import type { CurrentUser } from '@/src/lib/auth/session';
 import { signOutAction } from '@/src/server/actions/auth';
+import { SUPPORT_MAILTO } from '@/src/config/support';
 import { MainNav } from './main-nav';
 import { MobileNav } from './mobile-nav';
 import { NyClock } from './ny-clock';
@@ -35,6 +36,13 @@ export function AppHeader({ user }: { user: CurrentUser }) {
             {user.name}
           </Link>
           <Badge variant="secondary">{roleLabel}</Badge>
+          <a
+            href={SUPPORT_MAILTO}
+            className="underline-offset-4 hover:underline"
+            title="Email Tim about a problem with the app"
+          >
+            Support
+          </a>
           <form action={signOutAction}>
             <Button type="submit" variant="outline">
               Sign out
