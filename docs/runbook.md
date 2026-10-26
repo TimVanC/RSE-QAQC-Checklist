@@ -250,7 +250,7 @@ curl -X POST https://api.resend.com/emails -H "Authorization: Bearer $RESEND_API
 ```
 
 - [x] Neon Auth application name set to `RSE QA/QC Checklist` (2026-10-26).
-- [ ] Neon console > project > **Better Auth** > settings > **Enable webhooks**: URL
+- [x] (done 2026-10-26, branded reset email confirmed) Neon console > project > **Better Auth** > settings > **Enable webhooks**: URL
       `https://rseqaqc.com/api/webhooks/neon-auth`, events: `send.magic_link` only, timeout 10 s.
       (Do not subscribe `send.otp`; the app does not use OTP codes.) CLI equivalent:
 
@@ -258,7 +258,7 @@ curl -X POST https://api.resend.com/emails -H "Authorization: Bearer $RESEND_API
 neon neon-auth config webhook update --enabled --url https://rseqaqc.com/api/webhooks/neon-auth --enabled-events send.magic_link --timeout 10
 ```
 
-- [ ] Test: `/admin/users` > Send reset email on your own row. The branded email should arrive
+- [x] Test: `/admin/users` > Send reset email on your own row. The branded email should arrive
       from `no-reply@rseqaqc.com` within a few seconds. If nothing arrives, check the Vercel
       function logs for `[neon-auth webhook]`: a 401 means the signature failed (wrong
       `NEON_AUTH_BASE_URL`), a 503 means `RESEND_API_KEY` is missing, a 502 means Resend rejected
