@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { accountSetupEmail, expiryPhrase, passwordResetEmail } from '@/src/lib/email/templates';
+import {
+  accountSetupEmail,
+  expiryPhrase,
+  passwordResetEmail,
+  temporaryPasswordEmail,
+} from '@/src/lib/email/templates';
 
 const now = new Date('2026-10-26T20:00:00Z');
 const base = {
@@ -44,5 +49,19 @@ describe('auth email templates', () => {
     expect(expiryPhrase(new Date(now.getTime() + 2 * 60 * 60_000), now)).toBe('2 hours');
     expect(expiryPhrase(new Date(now.getTime() - 1000), now)).toBeNull();
     expect(expiryPhrase(null, now)).toBeNull();
+  });
+
+  it('temporary password email carries the details and a sign-in button', () => {
+    const m = temporaryPasswordEmail({
+      name: 'Relene Santos',
+      email: 'relene@example.com',
+      temporaryPassword: 'Maple7River!',
+      appUrl: 'https://rseqaqc.com',
+    });
+    expect(m.subject).toBe('Your RSE QA/QC Checklist sign-in details');
+    expect(m.html).toContain('Temporary password: Maple7River!');
+    expect(m.html).toContain('href="https://rseqaqc.com/login"');
+    expect(m.html).toContain('change your password at your convenience');
+    expect(m.text).toContain('Sign in: https://rseqaqc.com/login');
   });
 });

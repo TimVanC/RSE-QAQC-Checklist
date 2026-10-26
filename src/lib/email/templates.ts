@@ -179,3 +179,31 @@ export function passwordResetEmail(input: LinkEmailInput): EmailMessage {
   });
   return { subject: `Reset your ${BRAND.appName} password`, ...body };
 }
+
+export interface TemporaryPasswordEmailInput {
+  name: string;
+  email: string;
+  temporaryPassword: string;
+  appUrl: string;
+}
+
+/** Sent when an admin sets a temporary password and asks the app to email it. */
+export function temporaryPasswordEmail(input: TemporaryPasswordEmailInput): EmailMessage {
+  const loginUrl = `${input.appUrl.replace(/\/$/, '')}/login`;
+  const body = layout({
+    heading: `Your ${BRAND.appName} account is ready`,
+    intro: [
+      `Hi ${firstName(input.name)},`,
+      `An account has been created for you on the ${BRAND.appName}, the app the call team uses for the nightly QA/QC calls. Sign in with these details:`,
+      `Email: ${input.email}`,
+      `Temporary password: ${input.temporaryPassword}`,
+    ],
+    buttonLabel: 'Sign in',
+    link: loginUrl,
+    outro: [
+      'Please change your password at your convenience: after signing in, tap your name in the top right (or the menu on your phone) and go to Account.',
+    ],
+    appUrl: input.appUrl,
+  });
+  return { subject: `Your ${BRAND.appName} sign-in details`, ...body };
+}

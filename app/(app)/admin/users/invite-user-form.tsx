@@ -35,9 +35,11 @@ export function InviteUserForm() {
       }
       toast.success(
         result.data.resetEmailSent
-          ? `Invited ${email} and emailed a set-password link.`
+          ? temporaryPassword.trim()
+            ? `Invited ${email} and emailed their sign-in details.`
+            : `Invited ${email} and emailed a set-password link.`
           : sendResetEmail
-            ? `Invited ${email}, but the email could not be sent. Use "Send reset email" to retry.`
+            ? `Invited ${email}, but the email could not be sent. Use "Send reset email" or "Set password" to retry.`
             : `Invited ${email}.`,
       );
       setEmail('');
@@ -99,8 +101,11 @@ export function InviteUserForm() {
             autoComplete="off"
             value={temporaryPassword}
             onChange={(e) => setTemporaryPassword(e.target.value)}
-            placeholder={sendResetEmail ? 'Not needed' : 'Leave blank to generate'}
-            disabled={sendResetEmail}
+            placeholder={
+              sendResetEmail
+                ? 'Leave blank to email a set-password link'
+                : 'Leave blank to generate'
+            }
           />
         </div>
         <Button type="submit" className="h-10 sm:h-8" disabled={pending}>
@@ -118,7 +123,8 @@ export function InviteUserForm() {
           checked={sendResetEmail}
           onChange={(e) => setSendResetEmail(e.target.checked)}
         />
-        Email them a link to choose their own password instead of a temporary one
+        Email them. With a temporary password above, they get their sign-in details and a reminder
+        to change it; with it blank, they get a link to choose their own password.
       </label>
       {revealed && (
         <div className="rounded-lg border bg-muted/50 px-3 py-2 text-sm break-words">

@@ -10,6 +10,8 @@ import { generateTemporaryPassword, validatePassword } from '@/src/lib/auth/pass
 import { isRole } from '@/src/lib/auth/roles';
 import { getAuth } from '@/src/lib/auth/server';
 import { ForbiddenError, requireRole } from '@/src/lib/auth/session';
+import { sendEmail } from '@/src/lib/email/resend';
+import { temporaryPasswordEmail } from '@/src/lib/email/templates';
 import type { ActionResult } from './checklists';
 
 type Role = 'caller' | 'manager' | 'admin';
@@ -104,7 +106,19 @@ export async function inviteUser(input: {
       after: { email, name, role },
     });
 
-    const resetEmailSent = wantEmail ? await sendResetEmail(email) : false;
+    // Email, when asked for: a typed password is emailed as sign-in details; a blank one means
+    // they choose their own through a set-password link.
+    let resetEmailSent = false;
+    if (wantEmail && typed) {
+      const result = await sendEmail({
+        to: email,
+        ...temporaryPasswordEmail({ name, email, temporaryPassword: password, appUrl: appUrl() }),
+      });
+      if (!result.ok) console.warn('[users] temporary password email failed', result.error);
+      resetEmailSent = result.ok;
+    } else if (wantEmail) {
+      resetEmailSent = await sendResetEmail(email);
+    }
     revalidatePath('/admin/users');
     // Only reveal a password the admin did not type themselves when no email was sent.
     return {
