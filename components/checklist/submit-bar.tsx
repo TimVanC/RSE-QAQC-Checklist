@@ -108,7 +108,7 @@ export function SubmitBar({
               <span className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:flex">
                 <LockIcon className="size-3.5" aria-hidden />
                 Submitted{submittedByName ? ` by ${submittedByName}` : ''}
-                {submittedAt ? ` · ${formatApp(submittedAt)} NJ` : ''}
+                {submittedAt ? ` · ${formatApp(submittedAt)}` : ''}
               </span>
               {canReopen && (
                 <Button

@@ -55,7 +55,7 @@ export function TechniciansTable({ rows }: { rows: TechnicianRowData[] }) {
           <TableHead>Email</TableHead>
           <TableHead>Technician</TableHead>
           <TableHead>Active</TableHead>
-          <TableHead>Last synced (NJ)</TableHead>
+          <TableHead>Last synced</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>

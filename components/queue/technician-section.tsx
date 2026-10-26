@@ -205,7 +205,7 @@ export function TechnicianSection({ group }: { group: QueueGroup }) {
           )}
           aria-hidden
         >
-          <span>Time (NJ)</span>
+          <span>Time</span>
           <span>Customer</span>
           <span>Job</span>
           <span>Job status</span>

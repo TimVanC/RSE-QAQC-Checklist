@@ -171,7 +171,7 @@ function TechnicianCard({ group }: { group: TrackerGroup }) {
         <Table className="hidden md:table">
           <TableHeader>
             <TableRow>
-              <TableHead className={cn('w-44', STICKY_CELL)}>Date (NJ)</TableHead>
+              <TableHead className={cn('w-44', STICKY_CELL)}>Date</TableHead>
               <TableHead>Customer</TableHead>
               <TableHead>Job type</TableHead>
               <TableHead className="w-48">Checklist</TableHead>
@@ -242,7 +242,7 @@ export default async function TrackerPage(props: PageProps<'/tracker'>) {
           <h1 className="text-2xl font-semibold tracking-tight">Completion tracker</h1>
           <p className="text-sm text-muted-foreground">
             <span className="font-medium text-foreground">{period.label}</span> · jobs scheduled in
-            the pay period, NJ time
+            the pay period
             {!period.id && ' · computed from the pay period rule'}
           </p>
           {tracker.trackingStartApplied && tracker.trackingStartDate && (

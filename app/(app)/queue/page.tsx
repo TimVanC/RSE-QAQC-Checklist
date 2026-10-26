@@ -36,7 +36,7 @@ export default async function QueuePage(props: PageProps<'/queue'>) {
   const jobs = new Map(groups.flatMap((g) => g.jobs.map((j) => [j.hcpJobId, j] as const)));
   const submitted = [...jobs.values()].filter((j) => j.checklistStatus === 'submitted').length;
   const syncTitle = lastSync
-    ? `Last successful sync: ${formatApp(lastSync.finishedAt)} NJ (${SYNC_KIND_LABELS[lastSync.kind] ?? lastSync.kind})`
+    ? `Last successful sync: ${formatApp(lastSync.finishedAt)} (${SYNC_KIND_LABELS[lastSync.kind] ?? lastSync.kind})`
     : undefined;
 
   return (
@@ -45,7 +45,7 @@ export default async function QueuePage(props: PageProps<'/queue'>) {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Call queue</h1>
           <p className="text-sm text-muted-foreground">
-            <span className="font-medium text-foreground">{longDate}</span> · NJ time
+            <span className="font-medium text-foreground">{longDate}</span>
             {jobs.size > 0 && (
               <>
                 {' '}

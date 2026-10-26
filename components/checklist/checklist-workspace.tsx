@@ -158,7 +158,7 @@ function CallbackSection({
               </Link>
               <span className="text-muted-foreground">
                 · created {formatApp(cb.createdAt, 'MMM d, yyyy')} · {statusLabel(cb.status)}
-                {cb.submittedAt ? ` ${formatApp(cb.submittedAt, 'MMM d, h:mm a')} NJ` : ''}
+                {cb.submittedAt ? ` ${formatApp(cb.submittedAt, 'MMM d, h:mm a')}` : ''}
               </span>
             </li>
           ))}
@@ -544,7 +544,7 @@ export function ChecklistWorkspace({ data, currentUser }: ChecklistWorkspaceProp
           <LockIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
           <span>
             Submitted by {submittedByName ?? 'unknown'}
-            {submittedAt ? ` on ${formatApp(submittedAt)} NJ` : ''}. This checklist is read-only.{' '}
+            {submittedAt ? ` on ${formatApp(submittedAt)}` : ''}. This checklist is read-only.{' '}
             {canReopen
               ? 'Use Reopen at the bottom of the page to make changes.'
               : 'Ask a manager to reopen it if something needs to change.'}

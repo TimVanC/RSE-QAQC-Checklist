@@ -58,7 +58,7 @@ function scheduleText(job: WorkspaceJob): string {
   const end = job.scheduledEnd
     ? formatApp(job.scheduledEnd, sameDay ? 'h:mm a' : 'EEE MMM d, h:mm a')
     : '';
-  return `${start}${end ? ` – ${end}` : ''} NJ`;
+  return `${start}${end ? ` – ${end}` : ''}`;
 }
 
 function Fact({ label, children }: { label: string; children: ReactNode }) {
@@ -129,12 +129,12 @@ export function HeaderCard({
             )}
             {status === 'submitted' && submittedAt && (
               <span className="text-muted-foreground">
-                by {submittedByName ?? 'unknown'} on {formatApp(submittedAt)} NJ
+                by {submittedByName ?? 'unknown'} on {formatApp(submittedAt)}
               </span>
             )}
             {reopenedAt && (
               <span className="text-muted-foreground">
-                Reopened by {reopenedByName ?? 'unknown'} on {formatApp(reopenedAt)} NJ
+                Reopened by {reopenedByName ?? 'unknown'} on {formatApp(reopenedAt)}
               </span>
             )}
           </div>

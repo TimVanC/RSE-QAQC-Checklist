@@ -31,7 +31,7 @@ export function TrackingStartForm({ date }: { date: string | null }) {
   return (
     <form onSubmit={onSubmit} className="flex flex-wrap items-end gap-3">
       <div className="w-full space-y-1.5 sm:w-auto">
-        <Label htmlFor="tracking-start">Tracking starts on (NJ date)</Label>
+        <Label htmlFor="tracking-start">Tracking starts on</Label>
         <Input
           id="tracking-start"
           type="date"

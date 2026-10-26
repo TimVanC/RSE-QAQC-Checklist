@@ -26,7 +26,7 @@ export function NyClock() {
   const text = useSyncExternalStore(subscribe, formatNow, () => '');
   return (
     <span className="text-muted-foreground tabular-nums" title="New Jersey time (America/New_York)">
-      {text ? `${text} NJ` : ''}
+      {text}
     </span>
   );
 }
