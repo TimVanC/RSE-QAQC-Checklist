@@ -1,6 +1,6 @@
 'use server';
 
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { getDb } from '@/src/db';
@@ -35,7 +35,10 @@ function authRoleFor(role: Role): 'admin' | 'user' {
 }
 
 async function sendResetEmail(email: string): Promise<boolean> {
-  const { error } = await getAuth().requestPasswordReset({ email, redirectTo: `${appUrl()}/reset-password` });
+  const { error } = await getAuth().requestPasswordReset({
+    email,
+    redirectTo: `${appUrl()}/reset-password`,
+  });
   return !error;
 }
 
@@ -58,7 +61,9 @@ export async function inviteUser(input: {
   role: string;
   temporaryPassword?: string;
   sendResetEmail?: boolean;
-}): Promise<ActionResult<{ id: string; temporaryPassword: string | null; resetEmailSent: boolean }>> {
+}): Promise<
+  ActionResult<{ id: string; temporaryPassword: string | null; resetEmailSent: boolean }>
+> {
   try {
     const admin = await requireRole('admin');
     const parsed = inviteSchema.safeParse(input);
@@ -73,7 +78,11 @@ export async function inviteUser(input: {
     const password = typed || generateTemporaryPassword();
     const db = getDb();
 
-    const [existing] = await db.select({ id: appUsers.id }).from(appUsers).where(eq(appUsers.email, email)).limit(1);
+    const [existing] = await db
+      .select({ id: appUsers.id })
+      .from(appUsers)
+      .where(and(eq(appUsers.email, email), isNull(appUsers.deletedAt)))
+      .limit(1);
     if (existing) return fail('A user with that email already exists.');
 
     const auth = getAuth();
@@ -87,18 +96,30 @@ export async function inviteUser(input: {
       .insert(appUsers)
       .values({ email, name, role, active: true, authUserId, invitedBy: admin.id })
       .returning({ id: appUsers.id });
-    await recordAudit(db, { userId: admin.id, entity: 'app_user', entityId: row.id, action: 'invite', after: { email, name, role } });
+    await recordAudit(db, {
+      userId: admin.id,
+      entity: 'app_user',
+      entityId: row.id,
+      action: 'invite',
+      after: { email, name, role },
+    });
 
     const resetEmailSent = wantEmail ? await sendResetEmail(email) : false;
     revalidatePath('/admin/users');
     // Only reveal a password the admin did not type themselves when no email was sent.
-    return { ok: true, data: { id: row.id, temporaryPassword: typed || wantEmail ? null : password, resetEmailSent } };
+    return {
+      ok: true,
+      data: { id: row.id, temporaryPassword: typed || wantEmail ? null : password, resetEmailSent },
+    };
   } catch (err) {
     return fail(errorMessage(err));
   }
 }
 
-const roleSchema = z.object({ userId: z.string().uuid(), role: z.string().refine(isRole, 'invalid role') });
+const roleSchema = z.object({
+  userId: z.string().uuid(),
+  role: z.string().refine(isRole, 'invalid role'),
+});
 
 export async function setUserRole(input: { userId: string; role: string }): Promise<ActionResult> {
   try {
@@ -107,16 +128,31 @@ export async function setUserRole(input: { userId: string; role: string }): Prom
     if (!parsed.success) return fail('Invalid role.');
     const { userId } = parsed.data;
     const role = parsed.data.role as Role;
-    if (userId === admin.id && role !== 'admin') return fail('You cannot remove your own admin role.');
+    if (userId === admin.id && role !== 'admin')
+      return fail('You cannot remove your own admin role.');
     const db = getDb();
-    const [before] = await db.select({ role: appUsers.role, authUserId: appUsers.authUserId }).from(appUsers).where(eq(appUsers.id, userId)).limit(1);
+    const [before] = await db
+      .select({ role: appUsers.role, authUserId: appUsers.authUserId })
+      .from(appUsers)
+      .where(eq(appUsers.id, userId))
+      .limit(1);
     if (!before) return fail('User not found.');
     await db.update(appUsers).set({ role, updatedAt: new Date() }).where(eq(appUsers.id, userId));
     if (before.authUserId && authRoleFor(before.role) !== authRoleFor(role)) {
-      const { error } = await getAuth().admin.setRole({ userId: before.authUserId, role: authRoleFor(role) });
+      const { error } = await getAuth().admin.setRole({
+        userId: before.authUserId,
+        role: authRoleFor(role),
+      });
       if (error) console.warn('[users] could not mirror role to Neon Auth', error.message);
     }
-    await recordAudit(db, { userId: admin.id, entity: 'app_user', entityId: userId, action: 'set_role', before: { role: before.role }, after: { role } });
+    await recordAudit(db, {
+      userId: admin.id,
+      entity: 'app_user',
+      entityId: userId,
+      action: 'set_role',
+      before: { role: before.role },
+      after: { role },
+    });
     revalidatePath('/admin/users');
     return { ok: true, data: undefined };
   } catch (err) {
@@ -126,7 +162,10 @@ export async function setUserRole(input: { userId: string; role: string }): Prom
 
 const activeSchema = z.object({ userId: z.string().uuid(), active: z.boolean() });
 
-export async function setUserActive(input: { userId: string; active: boolean }): Promise<ActionResult> {
+export async function setUserActive(input: {
+  userId: string;
+  active: boolean;
+}): Promise<ActionResult> {
   try {
     const admin = await requireRole('admin');
     const parsed = activeSchema.safeParse(input);
@@ -134,15 +173,28 @@ export async function setUserActive(input: { userId: string; active: boolean }):
     const { userId, active } = parsed.data;
     if (userId === admin.id && !active) return fail('You cannot deactivate yourself.');
     const db = getDb();
-    const [row] = await db.select({ active: appUsers.active, authUserId: appUsers.authUserId }).from(appUsers).where(eq(appUsers.id, userId)).limit(1);
+    const [row] = await db
+      .select({ active: appUsers.active, authUserId: appUsers.authUserId })
+      .from(appUsers)
+      .where(eq(appUsers.id, userId))
+      .limit(1);
     if (!row) return fail('User not found.');
     await db.update(appUsers).set({ active, updatedAt: new Date() }).where(eq(appUsers.id, userId));
     if (!active && row.authUserId) {
       // Best effort: end their sessions so the change is immediate.
-      const auth = getAuth() as unknown as { admin?: { revokeUserSessions?: (o: { userId: string }) => Promise<unknown> } };
+      const auth = getAuth() as unknown as {
+        admin?: { revokeUserSessions?: (o: { userId: string }) => Promise<unknown> };
+      };
       await auth.admin?.revokeUserSessions?.({ userId: row.authUserId }).catch(() => undefined);
     }
-    await recordAudit(db, { userId: admin.id, entity: 'app_user', entityId: userId, action: active ? 'activate' : 'deactivate', before: { active: row.active }, after: { active } });
+    await recordAudit(db, {
+      userId: admin.id,
+      entity: 'app_user',
+      entityId: userId,
+      action: active ? 'activate' : 'deactivate',
+      before: { active: row.active },
+      after: { active },
+    });
     revalidatePath('/admin/users');
     return { ok: true, data: undefined };
   } catch (err) {
@@ -153,7 +205,10 @@ export async function setUserActive(input: { userId: string; active: boolean }):
 const tempPasswordSchema = z.object({ userId: z.string().uuid(), password: z.string().optional() });
 
 /** Admin sets (or generates) a temporary password for a user who is locked out. */
-export async function setTemporaryPassword(input: { userId: string; password?: string }): Promise<ActionResult<{ temporaryPassword: string | null }>> {
+export async function setTemporaryPassword(input: {
+  userId: string;
+  password?: string;
+}): Promise<ActionResult<{ temporaryPassword: string | null }>> {
   try {
     const admin = await requireRole('admin');
     const parsed = tempPasswordSchema.safeParse(input);
@@ -166,13 +221,26 @@ export async function setTemporaryPassword(input: { userId: string; password?: s
     }
     const password = typed || generateTemporaryPassword();
     const db = getDb();
-    const [row] = await db.select({ email: appUsers.email, active: appUsers.active, authUserId: appUsers.authUserId }).from(appUsers).where(eq(appUsers.id, userId)).limit(1);
+    const [row] = await db
+      .select({ email: appUsers.email, active: appUsers.active, authUserId: appUsers.authUserId })
+      .from(appUsers)
+      .where(eq(appUsers.id, userId))
+      .limit(1);
     if (!row) return fail('User not found.');
     if (!row.active) return fail('User is deactivated.');
-    if (!row.authUserId) return fail('This user has no sign-in account yet; send them a set-password email instead.');
-    const { error } = await getAuth().admin.setUserPassword({ userId: row.authUserId, newPassword: password });
+    if (!row.authUserId)
+      return fail('This user has no sign-in account yet; send them a set-password email instead.');
+    const { error } = await getAuth().admin.setUserPassword({
+      userId: row.authUserId,
+      newPassword: password,
+    });
     if (error) return fail(`Could not set the password: ${error.message}`);
-    await recordAudit(db, { userId: admin.id, entity: 'app_user', entityId: userId, action: 'set_temporary_password' });
+    await recordAudit(db, {
+      userId: admin.id,
+      entity: 'app_user',
+      entityId: userId,
+      action: 'set_temporary_password',
+    });
     return { ok: true, data: { temporaryPassword: typed ? null : password } };
   } catch (err) {
     return fail(errorMessage(err));
@@ -185,12 +253,76 @@ export async function sendPasswordResetEmail(userId: string): Promise<ActionResu
     const admin = await requireRole('admin');
     if (!z.string().uuid().safeParse(userId).success) return fail('Invalid user.');
     const db = getDb();
-    const [row] = await db.select({ email: appUsers.email, active: appUsers.active }).from(appUsers).where(eq(appUsers.id, userId)).limit(1);
+    const [row] = await db
+      .select({ email: appUsers.email, active: appUsers.active })
+      .from(appUsers)
+      .where(eq(appUsers.id, userId))
+      .limit(1);
     if (!row) return fail('User not found.');
     if (!row.active) return fail('User is deactivated.');
     const sent = await sendResetEmail(row.email);
-    if (!sent) return fail('Could not send the email. Check the email sender settings in Neon Auth.');
-    await recordAudit(db, { userId: admin.id, entity: 'app_user', entityId: userId, action: 'send_password_reset' });
+    if (!sent)
+      return fail('Could not send the email. Check the email sender settings in Neon Auth.');
+    await recordAudit(db, {
+      userId: admin.id,
+      entity: 'app_user',
+      entityId: userId,
+      action: 'send_password_reset',
+    });
+    return { ok: true, data: undefined };
+  } catch (err) {
+    return fail(errorMessage(err));
+  }
+}
+
+const deleteSchema = z.object({ userId: z.string().uuid() });
+
+/**
+ * Permanently removes a user's access: deletes the sign-in account in Neon Auth and marks the row
+ * deleted, which hides it from the Users page and frees the email for a new invite. The row itself
+ * stays so submitted checklists and the audit log still show who did what. Only deactivated users
+ * can be deleted, so it is always a two-step action.
+ */
+export async function deleteUser(input: { userId: string }): Promise<ActionResult> {
+  try {
+    const admin = await requireRole('admin');
+    const parsed = deleteSchema.safeParse(input);
+    if (!parsed.success) return fail('Invalid request.');
+    const { userId } = parsed.data;
+    if (userId === admin.id) return fail('You cannot delete yourself.');
+    const db = getDb();
+    const [row] = await db
+      .select({
+        email: appUsers.email,
+        name: appUsers.name,
+        active: appUsers.active,
+        authUserId: appUsers.authUserId,
+        deletedAt: appUsers.deletedAt,
+      })
+      .from(appUsers)
+      .where(eq(appUsers.id, userId))
+      .limit(1);
+    if (!row || row.deletedAt) return fail('User not found.');
+    if (row.active) return fail('Deactivate the user first, then delete.');
+    if (row.authUserId) {
+      const { error } = await getAuth().admin.removeUser({ userId: row.authUserId });
+      if (error && !/not found|no user/i.test(error.message ?? '')) {
+        return fail(`Could not remove the sign-in account: ${error.message}`);
+      }
+    }
+    const now = new Date();
+    await db
+      .update(appUsers)
+      .set({ deletedAt: now, authUserId: null, active: false, updatedAt: now })
+      .where(eq(appUsers.id, userId));
+    await recordAudit(db, {
+      userId: admin.id,
+      entity: 'app_user',
+      entityId: userId,
+      action: 'delete',
+      before: { email: row.email, name: row.name },
+    });
+    revalidatePath('/admin/users');
     return { ok: true, data: undefined };
   } catch (err) {
     return fail(errorMessage(err));

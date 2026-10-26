@@ -6,6 +6,15 @@ import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
   Table,
   TableBody,
   TableCell,
@@ -17,6 +26,7 @@ import type { Role } from '@/src/db/schema/enums';
 import { ROLE_LABELS, ROLES } from '@/src/lib/auth/roles';
 import { formatApp } from '@/src/lib/time';
 import {
+  deleteUser,
   sendPasswordResetEmail,
   setTemporaryPassword,
   setUserActive,
@@ -44,6 +54,7 @@ export function UsersTable({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [revealed, setRevealed] = useState<{ email: string; password: string } | null>(null);
+  const [toDelete, setToDelete] = useState<UserRowData | null>(null);
 
   function run(action: () => Promise<{ ok: boolean; error?: string }>, success: string) {
     startTransition(async () => {
@@ -178,6 +189,16 @@ export function UsersTable({
                     >
                       {u.active ? 'Deactivate' : 'Reactivate'}
                     </Button>
+                    {!u.active && (
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        disabled={pending || isSelf}
+                        onClick={() => setToDelete(u)}
+                      >
+                        Delete
+                      </Button>
+                    )}
                   </div>
                 </TableCell>
               </TableRow>
@@ -192,6 +213,34 @@ export function UsersTable({
           )}
         </TableBody>
       </Table>
+      <Dialog open={toDelete !== null} onOpenChange={(o) => !pending && !o && setToDelete(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete {toDelete?.name}?</DialogTitle>
+            <DialogDescription>
+              This removes their sign-in for good and takes them off this list. Checklists they
+              submitted keep their name. The email address can be invited again later.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" disabled={pending} />}>
+              Cancel
+            </DialogClose>
+            <Button
+              variant="destructive"
+              disabled={pending}
+              onClick={() => {
+                const u = toDelete;
+                if (!u) return;
+                run(() => deleteUser({ userId: u.id }), `${u.name} deleted.`);
+                setToDelete(null);
+              }}
+            >
+              Delete user
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

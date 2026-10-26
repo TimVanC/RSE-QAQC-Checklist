@@ -1,5 +1,5 @@
 import 'server-only';
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { cache } from 'react';
 import { redirect } from 'next/navigation';
 import { getDb } from '@/src/db';
@@ -43,9 +43,17 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   const db = getDb();
   const email = (sessionUser.email ?? '').trim().toLowerCase();
 
-  let [row] = await db.select().from(appUsers).where(eq(appUsers.authUserId, sessionUser.id)).limit(1);
+  let [row] = await db
+    .select()
+    .from(appUsers)
+    .where(eq(appUsers.authUserId, sessionUser.id))
+    .limit(1);
   if (!row && email) {
-    [row] = await db.select().from(appUsers).where(eq(appUsers.email, email)).limit(1);
+    [row] = await db
+      .select()
+      .from(appUsers)
+      .where(and(eq(appUsers.email, email), isNull(appUsers.deletedAt)))
+      .limit(1);
     // Never attach a session to a row already linked to a different auth user.
     if (row?.authUserId && row.authUserId !== sessionUser.id) return null;
     if (row && !row.authUserId) {
