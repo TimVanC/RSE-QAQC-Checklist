@@ -5,6 +5,7 @@ import { ROLE_LABELS } from '@/src/lib/auth/roles';
 import type { CurrentUser } from '@/src/lib/auth/session';
 import { signOutAction } from '@/src/server/actions/auth';
 import { SUPPORT_MAILTO } from '@/src/config/support';
+import { BrandLogo } from './brand-logo';
 import { MainNav } from './main-nav';
 import { MobileNav } from './mobile-nav';
 import { NyClock } from './ny-clock';
@@ -19,8 +20,8 @@ export function AppHeader({ user }: { user: CurrentUser }) {
   return (
     <header className="border-b bg-background">
       <div className="mx-auto flex w-full max-w-7xl items-center gap-4 px-4 py-2.5 sm:px-6 lg:gap-8 lg:py-4">
-        <Link href="/" className="shrink-0 text-lg font-semibold tracking-tight lg:text-xl">
-          RSE QA/QC
+        <Link href="/" className="shrink-0" aria-label="RSE QA/QC home">
+          <BrandLogo priority className="h-8 lg:h-9" />
         </Link>
         <MainNav role={user.role} className="hidden lg:flex" />
 

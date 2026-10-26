@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 
 import { Toaster } from '@/components/ui/sonner';
@@ -20,7 +20,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'RSE QA/QC Checklist',
   description: 'Private QA/QC production checklist for RSE Energy Group.',
+  manifest: '/site.webmanifest',
 };
+
+export const viewport: Viewport = { themeColor: '#103F80' };
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (

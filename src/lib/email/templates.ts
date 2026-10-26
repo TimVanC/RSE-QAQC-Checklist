@@ -11,8 +11,10 @@ export const BRAND = {
   appName: 'RSE QA/QC Checklist',
   company: 'RSE Energy Group',
   signoff: 'The RSE team',
-  /** Public URL of the logo shown in the header, or null for a text wordmark. */
-  logoUrl: process.env.EMAIL_LOGO_URL ?? null,
+  /** Public URL of the logo shown in the header (public/brand/email-logo.png, 480x154). */
+  logoUrl:
+    process.env.EMAIL_LOGO_URL ??
+    `${(process.env.NEXT_PUBLIC_APP_URL ?? 'https://rseqaqc.com').replace(/\/$/, '')}/brand/email-logo.png`,
   /** Where "Support" questions go; mirrored from the in-app Support link. */
   supportEmail: process.env.SUPPORT_EMAIL ?? 'timvancau@gmail.com',
 } as const;
@@ -72,7 +74,7 @@ interface LayoutInput {
 
 function layout(input: LayoutInput): { html: string; text: string } {
   const header = BRAND.logoUrl
-    ? `<img src="${escapeHtml(BRAND.logoUrl)}" alt="${escapeHtml(BRAND.company)}" height="40" style="height:40px;max-width:220px;display:block;border:0;">`
+    ? `<img src="${escapeHtml(BRAND.logoUrl)}" alt="${escapeHtml(BRAND.company)}" width="200" height="64" style="width:200px;height:auto;display:block;border:0;">`
     : `<span style="font-size:18px;font-weight:700;color:#111111;letter-spacing:-0.01em;">${escapeHtml(BRAND.appName)}</span>`;
 
   const paragraphs = (ps: string[]) =>

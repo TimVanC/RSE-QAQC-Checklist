@@ -20,6 +20,7 @@ import type { Role } from '@/src/db/schema/enums';
 import { cn } from '@/src/lib/utils';
 import { signOutAction } from '@/src/server/actions/auth';
 import { isNavActive, navItemsFor } from './main-nav';
+import { BrandLogo } from './brand-logo';
 import { NyClock } from './ny-clock';
 
 /** Menu sheet for phones and tablets: the role's sections, the account link and Sign out. */
@@ -44,7 +45,10 @@ export function MobileNav({
       </SheetTrigger>
       <SheetContent side="right" className="w-[85%] max-w-xs gap-0">
         <SheetHeader className="border-b pr-12">
-          <SheetTitle className="text-lg font-semibold tracking-tight">RSE QA/QC</SheetTitle>
+          <SheetTitle>
+            <BrandLogo className="h-8" />
+            <span className="sr-only">RSE QA/QC</span>
+          </SheetTitle>
           <SheetDescription render={<div />}>
             <NyClock />
           </SheetDescription>
