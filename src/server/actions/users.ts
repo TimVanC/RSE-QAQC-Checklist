@@ -1,6 +1,6 @@
 'use server';
 
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull, ne } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { getDb } from '@/src/db';
@@ -321,6 +321,71 @@ export async function deleteUser(input: { userId: string }): Promise<ActionResul
       entityId: userId,
       action: 'delete',
       before: { email: row.email, name: row.name },
+    });
+    revalidatePath('/admin/users');
+    return { ok: true, data: undefined };
+  } catch (err) {
+    return fail(errorMessage(err));
+  }
+}
+
+const profileSchema = z.object({
+  userId: z.string().uuid(),
+  name: z.string().trim().min(1, 'Name is required').max(120),
+  email: z.string().trim().toLowerCase().email('Enter a valid email'),
+});
+
+/** Admin changes a user's name and/or email. The email is also changed in Neon Auth so they sign in with the new one. */
+export async function updateUserProfile(input: {
+  userId: string;
+  name: string;
+  email: string;
+}): Promise<ActionResult> {
+  try {
+    const admin = await requireRole('admin');
+    const parsed = profileSchema.safeParse(input);
+    if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? 'Invalid request.');
+    const { userId, name, email } = parsed.data;
+    const db = getDb();
+    const [row] = await db
+      .select({
+        name: appUsers.name,
+        email: appUsers.email,
+        authUserId: appUsers.authUserId,
+        deletedAt: appUsers.deletedAt,
+      })
+      .from(appUsers)
+      .where(eq(appUsers.id, userId))
+      .limit(1);
+    if (!row || row.deletedAt) return fail('User not found.');
+    if (row.name === name && row.email === email) return { ok: true, data: undefined };
+
+    if (row.email !== email) {
+      const [clash] = await db
+        .select({ id: appUsers.id })
+        .from(appUsers)
+        .where(and(eq(appUsers.email, email), isNull(appUsers.deletedAt), ne(appUsers.id, userId)))
+        .limit(1);
+      if (clash) return fail('Another user already has that email.');
+    }
+    if (row.authUserId) {
+      const data: { name?: string; email?: string } = {};
+      if (row.name !== name) data.name = name;
+      if (row.email !== email) data.email = email;
+      const { error } = await getAuth().admin.updateUser({ userId: row.authUserId, data });
+      if (error) return fail(`Could not update the sign-in account: ${error.message}`);
+    }
+    await db
+      .update(appUsers)
+      .set({ name, email, updatedAt: new Date() })
+      .where(eq(appUsers.id, userId));
+    await recordAudit(db, {
+      userId: admin.id,
+      entity: 'app_user',
+      entityId: userId,
+      action: 'update_profile',
+      before: { name: row.name, email: row.email },
+      after: { name, email },
     });
     revalidatePath('/admin/users');
     return { ok: true, data: undefined };

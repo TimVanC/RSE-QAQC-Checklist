@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Dialog,
   DialogClose,
@@ -31,6 +33,7 @@ import {
   setTemporaryPassword,
   setUserActive,
   setUserRole,
+  updateUserProfile,
 } from '@/src/server/actions/users';
 
 export interface UserRowData {
@@ -55,6 +58,7 @@ export function UsersTable({
   const [pending, startTransition] = useTransition();
   const [revealed, setRevealed] = useState<{ email: string; password: string } | null>(null);
   const [toDelete, setToDelete] = useState<UserRowData | null>(null);
+  const [editing, setEditing] = useState<{ id: string; name: string; email: string } | null>(null);
 
   function run(action: () => Promise<{ ok: boolean; error?: string }>, success: string) {
     startTransition(async () => {
@@ -161,6 +165,14 @@ export function UsersTable({
                     <Button
                       size="sm"
                       variant="outline"
+                      disabled={pending}
+                      onClick={() => setEditing({ id: u.id, name: u.name, email: u.email })}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
                       disabled={pending || !u.active || isSelf}
                       onClick={() => resetPassword(u)}
                     >
@@ -213,6 +225,57 @@ export function UsersTable({
           )}
         </TableBody>
       </Table>
+      <Dialog open={editing !== null} onOpenChange={(o) => !pending && !o && setEditing(null)}>
+        <DialogContent className="sm:max-w-md">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const edit = editing;
+              if (!edit) return;
+              run(
+                () => updateUserProfile({ userId: edit.id, name: edit.name, email: edit.email }),
+                'User updated.',
+              );
+              setEditing(null);
+            }}
+            className="space-y-4"
+          >
+            <DialogHeader>
+              <DialogTitle>Edit user</DialogTitle>
+              <DialogDescription>
+                Changing the email changes what they sign in with. Their password stays the same.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-name">Name</Label>
+              <Input
+                id="edit-name"
+                required
+                value={editing?.name ?? ''}
+                onChange={(e) => setEditing((s) => (s ? { ...s, name: e.target.value } : s))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-email">Email</Label>
+              <Input
+                id="edit-email"
+                type="email"
+                required
+                value={editing?.email ?? ''}
+                onChange={(e) => setEditing((s) => (s ? { ...s, email: e.target.value } : s))}
+              />
+            </div>
+            <DialogFooter>
+              <DialogClose render={<Button type="button" variant="outline" disabled={pending} />}>
+                Cancel
+              </DialogClose>
+              <Button type="submit" disabled={pending}>
+                Save
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
       <Dialog open={toDelete !== null} onOpenChange={(o) => !pending && !o && setToDelete(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
