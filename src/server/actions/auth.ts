@@ -1,7 +1,10 @@
 'use server';
 
+import { and, eq, isNull } from 'drizzle-orm';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
+import { getDb } from '@/src/db';
+import { appUsers } from '@/src/db/schema/users';
 import { validatePassword } from '@/src/lib/auth/password';
 import { getAuth } from '@/src/lib/auth/server';
 import { requireRole } from '@/src/lib/auth/session';
@@ -14,16 +17,29 @@ const signInSchema = z.object({
 });
 
 /** Email + password sign-in. On success the SDK sets the session cookies and we go to the queue. */
-export async function signInWithPassword(_prev: FormState | null, formData: FormData): Promise<FormState> {
-  const parsed = signInSchema.safeParse({ email: formData.get('email'), password: formData.get('password') });
+export async function signInWithPassword(
+  _prev: FormState | null,
+  formData: FormData,
+): Promise<FormState> {
+  const parsed = signInSchema.safeParse({
+    email: formData.get('email'),
+    password: formData.get('password'),
+  });
   if (!parsed.success) return { error: 'Enter your email and password.' };
 
   const { error } = await getAuth().signIn.email(parsed.data);
   if (error) {
     const code = (error as { code?: string }).code ?? '';
-    if (code.startsWith('NETWORK_')) return { error: 'The sign-in service is unreachable. Try again in a moment.' };
+    if (code.startsWith('NETWORK_'))
+      return { error: 'The sign-in service is unreachable. Try again in a moment.' };
     return { error: 'Email or password is incorrect.' };
   }
+  // Best effort: the Users page shows when each person last signed in.
+  await getDb()
+    .update(appUsers)
+    .set({ lastLoginAt: new Date() })
+    .where(and(eq(appUsers.email, parsed.data.email), isNull(appUsers.deletedAt)))
+    .catch(() => undefined);
   redirect('/');
 }
 
@@ -39,7 +55,10 @@ const changeSchema = z.object({
 });
 
 /** Signed-in users change their own password; other sessions are revoked. */
-export async function changePasswordAction(_prev: FormState | null, formData: FormData): Promise<FormState> {
+export async function changePasswordAction(
+  _prev: FormState | null,
+  formData: FormData,
+): Promise<FormState> {
   try {
     await requireRole('caller');
   } catch {
@@ -57,7 +76,16 @@ export async function changePasswordAction(_prev: FormState | null, formData: Fo
   if (newPassword !== confirmPassword) return { error: 'The new passwords do not match.' };
   if (newPassword === currentPassword) return { error: 'Choose a different password.' };
 
-  const { error } = await getAuth().changePassword({ currentPassword, newPassword, revokeOtherSessions: true });
-  if (error) return { error: /invalid|incorrect|password/i.test(error.message ?? '') ? 'Current password is incorrect.' : 'Could not change the password.' };
+  const { error } = await getAuth().changePassword({
+    currentPassword,
+    newPassword,
+    revokeOtherSessions: true,
+  });
+  if (error)
+    return {
+      error: /invalid|incorrect|password/i.test(error.message ?? '')
+        ? 'Current password is incorrect.'
+        : 'Could not change the password.',
+    };
   return { error: null, ok: true };
 }

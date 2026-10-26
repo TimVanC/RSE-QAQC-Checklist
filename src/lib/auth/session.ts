@@ -65,6 +65,12 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
     }
   }
   if (!row || !row.active) return null;
+  if (!row.lastLoginAt) {
+    // First sign-in through the reset-password page bypasses the sign-in action; record it here.
+    const now = new Date();
+    await db.update(appUsers).set({ lastLoginAt: now }).where(eq(appUsers.id, row.id));
+    row = { ...row, lastLoginAt: now };
+  }
 
   return {
     id: row.id,
