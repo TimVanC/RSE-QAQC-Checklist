@@ -29,6 +29,9 @@ Every variable in `.env.example`, and where it lives (status from `vercel env ls
 | `NEON_AUTH_COOKIE_SECRET` | 32+ random characters; signs the session cookie | set | set | yes |
 | `HCP_API_KEY` | Housecall Pro read-only API key, server side only | **not set yet** | not set | only to run `npm run hcp:verify` |
 | `HCP_WEBHOOK_SECRET` | HCP webhook signing secret (HMAC-SHA256) | **not set yet** | not set | no |
+| `RESEND_API_KEY` | Resend API key for the branded invite / reset emails (section 2.12) | set when 2.12 is done | not set | no |
+| `EMAIL_FROM` | Sender shown on those emails; the domain must be verified in Resend | `RSE QA/QC Checklist <no-reply@rseqaqc.com>` (default in code) | same | no |
+| `EMAIL_LOGO_URL` | Optional logo URL for the email header | not set | not set | no |
 | `CRON_SECRET` | Bearer secret for `/api/cron/*`; Vercel Cron sends it when the variable exists | set | set | yes |
 | `APP_TIMEZONE` | IANA zone for pay periods, the queue day and displayed times | set | set | yes |
 | `NEXT_PUBLIC_APP_URL` | Public base URL; used in password-reset links sent by the invite and reset actions | set | not set | `http://localhost:3000` |
@@ -216,6 +219,54 @@ curl -s -o /dev/null -w '%{http_code} %{redirect_url}
 ```bash
 gh repo edit TimVanC/RSE-QAQC-Checklist --visibility private --accept-visibility-change-consequences
 ```
+
+### 2.12 Branded sign-in emails (Resend + Neon Auth webhook)
+
+By default Neon Auth sends its own "Reset Your Password" email from `auth@mail.myneon.app`, with
+the Neon project name as the heading and no way to edit the template. The app can take over
+delivery instead: Neon calls `POST /api/webhooks/neon-auth` for every `send.magic_link` event
+(invites and password resets both arrive as `link_type: forget-password`), the app verifies the
+Ed25519 signature against Neon's JWKS, picks a template (account setup when the person has never
+signed in, password reset otherwise; see `src/lib/email/templates.ts`) and sends it through Resend
+from `no-reply@rseqaqc.com`.
+
+Order matters: once the webhook is subscribed, Neon stops sending its own email, so Resend must
+work first.
+
+- [ ] Resend: create an account, add the domain `rseqaqc.com`, add the DNS records it shows at
+      Porkbun (DKIM TXT, and MX + TXT for the bounce subdomain), wait for "Verified".
+- [ ] Resend: create an API key (Sending access only) and set it:
+
+```bash
+vercel env add RESEND_API_KEY production
+```
+
+- [ ] Optional: put the logo at `public/brand/email-logo.png` and set `EMAIL_LOGO_URL` to
+      `https://rseqaqc.com/brand/email-logo.png`. Without it the header is the app name in text.
+- [ ] Redeploy (any push to `main`), then send yourself a test through the API to prove Resend
+      works end to end (replace the key):
+
+```bash
+curl -X POST https://api.resend.com/emails -H "Authorization: Bearer $RESEND_API_KEY" -H "Content-Type: application/json" -d '{"from":"RSE QA/QC Checklist <no-reply@rseqaqc.com>","to":["you@example.com"],"subject":"Resend test","text":"ok"}'
+```
+
+- [ ] Neon console > project > Auth > Configuration: set **Application Name** to
+      `RSE QA/QC Checklist` (used as a fallback heading if Neon ever sends a default email).
+- [ ] Neon console > Auth > Configuration > **Webhooks**: URL
+      `https://rseqaqc.com/api/webhooks/neon-auth`, events: `send.magic_link` only, timeout 10 s.
+      (Do not subscribe `send.otp`; the app does not use OTP codes.) CLI equivalent:
+
+```bash
+neon neon-auth config webhook update --enabled --url https://rseqaqc.com/api/webhooks/neon-auth --enabled-events send.magic_link --timeout 10
+```
+
+- [ ] Test: `/admin/users` > Send reset email on your own row. The branded email should arrive
+      from `no-reply@rseqaqc.com` within a few seconds. If nothing arrives, check the Vercel
+      function logs for `[neon-auth webhook]`: a 401 means the signature failed (wrong
+      `NEON_AUTH_BASE_URL`), a 503 means `RESEND_API_KEY` is missing, a 502 means Resend rejected
+      the send (usually an unverified domain).
+
+Rolling back: disable the webhook in the Neon console and Neon's default email returns at once.
 
 ## 3. Daily operation
 
