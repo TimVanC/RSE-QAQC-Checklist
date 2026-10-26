@@ -111,7 +111,7 @@ export function UsersTable({
             <TableHead>Email</TableHead>
             <TableHead>Role</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead>Last login</TableHead>
+            <TableHead>Last active</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
