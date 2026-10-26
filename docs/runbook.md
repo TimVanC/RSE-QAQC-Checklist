@@ -233,9 +233,8 @@ from `no-reply@rseqaqc.com`.
 Order matters: once the webhook is subscribed, Neon stops sending its own email, so Resend must
 work first.
 
-- [ ] Resend: create an account, add the domain `rseqaqc.com`, add the DNS records it shows at
-      Porkbun (DKIM TXT, and MX + TXT for the bounce subdomain), wait for "Verified".
-- [ ] Resend: create an API key (Sending access only) and set it:
+- [x] Resend: account exists (Tim), domain `rseqaqc.com` is verified (DNS at Porkbun done 2026-10-26).
+- [x] Resend: API key `rseqaqc-app (sending only)`, restricted to the domain, set in Vercel on 2026-10-26 together with `EMAIL_FROM`. To rotate:
 
 ```bash
 vercel env add RESEND_API_KEY production
@@ -250,9 +249,8 @@ vercel env add RESEND_API_KEY production
 curl -X POST https://api.resend.com/emails -H "Authorization: Bearer $RESEND_API_KEY" -H "Content-Type: application/json" -d '{"from":"RSE QA/QC Checklist <no-reply@rseqaqc.com>","to":["you@example.com"],"subject":"Resend test","text":"ok"}'
 ```
 
-- [ ] Neon console > project > Auth > Configuration: set **Application Name** to
-      `RSE QA/QC Checklist` (used as a fallback heading if Neon ever sends a default email).
-- [ ] Neon console > Auth > Configuration > **Webhooks**: URL
+- [x] Neon Auth application name set to `RSE QA/QC Checklist` (2026-10-26).
+- [ ] Neon console > project > **Better Auth** > settings > **Enable webhooks**: URL
       `https://rseqaqc.com/api/webhooks/neon-auth`, events: `send.magic_link` only, timeout 10 s.
       (Do not subscribe `send.otp`; the app does not use OTP codes.) CLI equivalent:
 
