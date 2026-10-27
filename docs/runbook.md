@@ -399,7 +399,7 @@ The role is read from the `app_users` table on every request, so a change applie
 
 ## 5. Checklists
 
-1. **Open from the queue.** `/queue` is the home screen: pick the NJ day, jobs are grouped by technician (a job with two technicians appears under both; jobs without a technician are under "Unassigned"). Badges show the HCP work state, the checklist state (Not started, In progress, Submitted) and any call back count. Open checklist creates the Appointment/Service Call checklist on first use (one per job, enforced by a unique index; it starts as Not started) and reuses it afterwards.
+1. **Open from the queue.** `/queue` is the home screen: pick the NJ day, jobs are grouped by technician (a job with two technicians appears under both; jobs without a technician are under "Unassigned"). Badges show the HCP work state, the checklist state (Not started, In progress, Not reached, Submitted) and any call back count. Open checklist creates the Appointment/Service Call checklist on first use (one per job, enforced by a unique index; it starts as Not started) and reuses it afterwards.
 2. **Prefill.** Customer, project type (guessed from job type, tags and description by `src/lib/hcp/project-type.ts`; blank when nothing matches), location, project date and referral/project number (the invoice number). The technician is the assigned person flagged as a technician (if there are several, the one whose name sorts first).
 3. **Autosave.** Each Y/N/B saves at once, the score is recomputed on the server, and the first saved answer moves the checklist from Not started to In progress; text and date fields save after a short pause and on blur. The footer shows Saving, Saved or "Last change not saved". Keyboard: `y` `n` `b` answer and move on, arrows or `j` `k` move, Backspace clears, Enter moves on (on the last step it focuses Submit), `?` lists shortcuts.
 4. **HCP suggestions.** Steps 1, 10, 11, 27 and 30 show a suggestion with its evidence. They never fill themselves in; confirming or overriding is recorded (`manual`, `auto_confirmed`, `auto_overridden`). Low-confidence suggestions show unselected.
@@ -414,6 +414,11 @@ FROM audit_log a LEFT JOIN app_users u ON u.id = a.user_id
 WHERE split_part(a.entity_id, ':', 1) = '<checklist id>'
 ORDER BY a.at;
 ```
+
+9. **Call log and "Not reached".** Every call attempt is logged per job (`call_log`: reached, no answer, asked to call back, with a note, the caller and the time). The Not reached button on a queue row logs a no-answer attempt in one tap; the Call log card on the checklist lists every attempt and has Log call, which is also the nightly check-in on multi-day jobs. The queue and the tracker show **Not reached** when the latest attempt did not get through and the checklist has not been touched since; answering a step or submitting clears it.
+10. **Multi-day jobs.** A job is listed in the queue on every NJ day its scheduled span or any of its HCP appointments covers (capped at 14 days), with a "Day 2 of 3" badge. It still has one checklist and one score.
+11. **Corrective actions.** A step answered N gets Add follow-up (what, who, due date). Follow-ups show under the step as Open, Overdue or Resolved; managers resolve them with a note or reopen them. The tracker's Open actions card lists every unresolved follow-up across all jobs. Stored in `corrective_actions`; scores are not affected.
+12. **Import workbook.** On an unsubmitted checklist, Import workbook takes the Excel workbook (.xlsx) or a CSV of one tab, reads the Y/N/B cells and header and step fields through the same cell map as the app (`src/config/checklist-steps.ts`), and writes only the cells that hold a value. With several filled Task tabs it asks which one. Unreadable cells are listed and skipped. Server action body limit is 10 MB (`next.config.ts`); the RSE workbook is about 0.3 MB.
 
 ## 6. Pay periods
 
