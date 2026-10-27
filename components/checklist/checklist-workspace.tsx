@@ -13,6 +13,7 @@ import {
   type ReactNode,
 } from 'react';
 import { toast } from 'sonner';
+import { CallLogCard } from '@/components/calls/call-log-card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import {
@@ -535,6 +536,16 @@ export function ChecklistWorkspace({ data, currentUser }: ChecklistWorkspaceProp
         onSaveField={saveFieldValue}
         onCallDateSaved={setCallDate}
       />
+
+      {data.job && (
+        <CallLogCard
+          hcpJobId={data.job.hcpJobId}
+          callDate={callDate}
+          customerName={data.job.customerName || checklist.customerName || 'this job'}
+          entries={data.callLog}
+          readOnly={readOnly}
+        />
+      )}
 
       {readOnly && (
         <div

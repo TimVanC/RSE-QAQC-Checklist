@@ -1,10 +1,26 @@
 import 'server-only';
 import { and, asc, desc, eq, inArray, ne } from 'drizzle-orm';
 import { getDb } from '@/src/db';
-import { checklistAnswers, checklistScores, checklists, type Checklist, type ChecklistAnswer, type ChecklistScoreRow } from '@/src/db/schema/checklists';
-import { hcpInvoices, hcpJobAssignees, hcpJobs, hcpPayments, technicians, type HcpJobRow, type Technician } from '@/src/db/schema/hcp';
+import {
+  checklistAnswers,
+  checklistScores,
+  checklists,
+  type Checklist,
+  type ChecklistAnswer,
+  type ChecklistScoreRow,
+} from '@/src/db/schema/checklists';
+import {
+  hcpInvoices,
+  hcpJobAssignees,
+  hcpJobs,
+  hcpPayments,
+  technicians,
+  type HcpJobRow,
+  type Technician,
+} from '@/src/db/schema/hcp';
 import { appUsers } from '@/src/db/schema/users';
 import { computeAutoChecks, type AutoCheckMap } from '@/src/lib/hcp/auto-checks';
+import { getCallLogForJob, type CallLogEntry } from './calls';
 
 export interface ChecklistDetail {
   checklist: Checklist;
@@ -17,6 +33,8 @@ export interface ChecklistDetail {
   callbacks: Array<Pick<Checklist, 'id' | 'status' | 'createdAt' | 'submittedAt'>>;
   submittedByName: string | null;
   reopenedByName: string | null;
+  /** Every call attempt for the job, newest first. */
+  callLog: CallLogEntry[];
 }
 
 export async function getTaskChecklistForJob(hcpJobId: string): Promise<Checklist | null> {
@@ -34,7 +52,11 @@ export async function getChecklistDetail(id: string): Promise<ChecklistDetail | 
   const [checklist] = await db.select().from(checklists).where(eq(checklists.id, id)).limit(1);
   if (!checklist) return null;
 
-  const [job] = await db.select().from(hcpJobs).where(eq(hcpJobs.hcpJobId, checklist.hcpJobId)).limit(1);
+  const [job] = await db
+    .select()
+    .from(hcpJobs)
+    .where(eq(hcpJobs.hcpJobId, checklist.hcpJobId))
+    .limit(1);
 
   const assignedTechnicians = await db
     .select({ t: technicians })
@@ -45,14 +67,25 @@ export async function getChecklistDetail(id: string): Promise<ChecklistDetail | 
 
   let technician: Technician | null = null;
   if (checklist.technicianId) {
-    [technician] = await db.select().from(technicians).where(eq(technicians.id, checklist.technicianId)).limit(1);
+    [technician] = await db
+      .select()
+      .from(technicians)
+      .where(eq(technicians.id, checklist.technicianId))
+      .limit(1);
   }
 
-  const answerRows = await db.select().from(checklistAnswers).where(eq(checklistAnswers.checklistId, id));
+  const answerRows = await db
+    .select()
+    .from(checklistAnswers)
+    .where(eq(checklistAnswers.checklistId, id));
   const answers: Record<string, ChecklistAnswer> = {};
   for (const a of answerRows) answers[a.stepKey] = a;
 
-  const [score] = await db.select().from(checklistScores).where(eq(checklistScores.checklistId, id)).limit(1);
+  const [score] = await db
+    .select()
+    .from(checklistScores)
+    .where(eq(checklistScores.checklistId, id))
+    .limit(1);
 
   let parent: ChecklistDetail['parent'] = null;
   if (checklist.parentChecklistId) {
@@ -64,16 +97,28 @@ export async function getChecklistDetail(id: string): Promise<ChecklistDetail | 
     parent = p ?? null;
   }
 
+  const callLog = await getCallLogForJob(checklist.hcpJobId);
+
   const callbacks = await db
-    .select({ id: checklists.id, status: checklists.status, createdAt: checklists.createdAt, submittedAt: checklists.submittedAt })
+    .select({
+      id: checklists.id,
+      status: checklists.status,
+      createdAt: checklists.createdAt,
+      submittedAt: checklists.submittedAt,
+    })
     .from(checklists)
     .where(eq(checklists.parentChecklistId, id))
     .orderBy(asc(checklists.createdAt));
 
-  const userIds = [checklist.submittedBy, checklist.reopenedBy].filter((v): v is string => Boolean(v));
+  const userIds = [checklist.submittedBy, checklist.reopenedBy].filter((v): v is string =>
+    Boolean(v),
+  );
   const names = new Map<string, string>();
   if (userIds.length > 0) {
-    const users = await db.select({ id: appUsers.id, name: appUsers.name }).from(appUsers).where(inArray(appUsers.id, userIds));
+    const users = await db
+      .select({ id: appUsers.id, name: appUsers.name })
+      .from(appUsers)
+      .where(inArray(appUsers.id, userIds));
     for (const u of users) names.set(u.id, u.name);
   }
 
@@ -88,6 +133,7 @@ export async function getChecklistDetail(id: string): Promise<ChecklistDetail | 
     callbacks,
     submittedByName: checklist.submittedBy ? (names.get(checklist.submittedBy) ?? null) : null,
     reopenedByName: checklist.reopenedBy ? (names.get(checklist.reopenedBy) ?? null) : null,
+    callLog,
   };
 }
 

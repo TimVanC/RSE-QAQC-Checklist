@@ -65,6 +65,26 @@ function row(
 }
 
 describe('groupQueueRows', () => {
+  it('shows not reached after a failed call attempt and counts it per technician', () => {
+    const at = new Date('2026-10-13T23:00:00Z');
+    const groups = groupQueueRows([
+      row('job-1', 9, TECHS.marcus, {
+        lastCall: { outcome: 'no_answer', at, note: 'voicemail', byName: 'Ana' },
+        callAttempts: 2,
+      }),
+      row('job-2', 10, TECHS.marcus, {
+        checklistId: 'c2',
+        checklistStatus: 'in_progress',
+        checklistUpdatedAt: new Date('2026-10-13T23:30:00Z'),
+        lastCall: { outcome: 'no_answer', at, note: null, byName: 'Ana' },
+        callAttempts: 1,
+      }),
+    ]);
+    expect(groups[0].jobs.map((j) => j.checklistStatus)).toEqual(['not_reached', 'in_progress']);
+    expect(groups[0].jobs[0].callAttempts).toBe(2);
+    expect(groups[0].notReachedCount).toBe(1);
+  });
+
   it('returns no groups for no rows', () => {
     expect(groupQueueRows([])).toEqual([]);
   });

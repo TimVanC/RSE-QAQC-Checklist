@@ -6,6 +6,7 @@ import { checklistScores, checklists } from '@/src/db/schema/checklists';
 import { hcpJobAssignees, hcpJobs, technicians } from '@/src/db/schema/hcp';
 import { appSettings, syncRuns, webhookEvents, type SyncRun } from '@/src/db/schema/system';
 import { appDayRange, type IsoDate } from '@/src/lib/time';
+import { getCallSummaries } from './calls';
 import {
   excludeJobTypes,
   groupQueueRows,
@@ -120,14 +121,27 @@ export async function getQueueForDate(date: IsoDate): Promise<QueueForDate> {
     .where(and(eq(webhookEvents.status, 'processed'), isNotNull(webhookEvents.processedAt)))
     .orderBy(desc(webhookEvents.processedAt))
     .limit(1);
-  const [rows, [setting], [lastRun], [lastWebhook]] = await Promise.all([rowsQuery, settingQuery, lastSyncQuery, lastWebhookQuery]);
+  const [rows, [setting], [lastRun], [lastWebhook]] = await Promise.all([
+    rowsQuery,
+    settingQuery,
+    lastSyncQuery,
+    lastWebhookQuery,
+  ]);
   const last =
-    lastWebhook?.processedAt && (!lastRun?.finishedAt || lastWebhook.processedAt > lastRun.finishedAt)
+    lastWebhook?.processedAt &&
+    (!lastRun?.finishedAt || lastWebhook.processedAt > lastRun.finishedAt)
       ? { finishedAt: lastWebhook.processedAt, kind: 'webhook' as const }
       : lastRun;
 
   const excluded = parseExcludedJobTypes(setting?.value);
-  const groups = groupQueueRows(excludeJobTypes<QueueRow>(rows, excluded));
+  const kept = excludeJobTypes<QueueRow>(rows, excluded);
+  const calls = await getCallSummaries([...new Set(kept.map((r) => r.hcpJobId))]);
+  const groups = groupQueueRows(
+    kept.map((r) => {
+      const c = calls.get(r.hcpJobId);
+      return { ...r, lastCall: c?.last ?? null, callAttempts: c?.attempts ?? 0 };
+    }),
+  );
   const lastSync = last?.finishedAt ? { finishedAt: last.finishedAt, kind: last.kind } : null;
   return { date, groups, lastSync, asOf: new Date() };
 }

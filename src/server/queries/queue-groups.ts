@@ -3,10 +3,10 @@
  * No database or server-only imports, so it is unit tested directly (tests/server/queue.test.ts).
  */
 import type { ChecklistStatus } from '@/src/db/schema/enums';
+import { displayStatus, type ChecklistDisplayStatus, type LastCall } from '@/src/lib/calls';
 import { failureLabels } from '@/src/lib/scoring/failure-labels';
 
-/** Display status of a job's task checklist: `not_started` when no checklist row exists yet. */
-export type ChecklistDisplayStatus = ChecklistStatus;
+export type { ChecklistDisplayStatus, LastCall };
 
 /** Simplified Housecall Pro work status for the queue badge. */
 export type JobWorkState = 'scheduled' | 'in_progress' | 'completed' | 'canceled';
@@ -37,6 +37,9 @@ export interface QueueRow {
   checklistStatus: ChecklistStatus | null;
   checklistSubmittedAt: Date | null;
   checklistUpdatedAt: Date | null;
+  /** Newest call attempt for the job and how many there were (see getCallSummaries). */
+  lastCall?: LastCall | null;
+  callAttempts?: number;
   failOpsCheck?: number | null;
   failQaqc?: number | null;
   failToolControl?: number | null;
@@ -68,7 +71,10 @@ export interface QueueJob {
   totalAmountCents: number | null;
   /** The job's task checklist, or null when nobody has opened it yet. */
   checklist: QueueChecklist | null;
+  /** Checklist status, or `not_reached` when the latest call attempt did not get through. */
   checklistStatus: ChecklistDisplayStatus;
+  lastCall: LastCall | null;
+  callAttempts: number;
   /** Workbook failure flags currently set on the checklist (empty when clean or not started). */
   failures: string[];
   callbackCount: number;
@@ -93,6 +99,7 @@ export interface QueueGroup {
   jobs: QueueJob[];
   submittedCount: number;
   canceledCount: number;
+  notReachedCount: number;
 }
 
 export const UNASSIGNED_KEY = 'unassigned';
@@ -176,7 +183,9 @@ function toJob(row: QueueRow): QueueJob {
     canceledAt: row.canceledAt,
     totalAmountCents: row.totalAmountCents,
     checklist,
-    checklistStatus: checklist?.status ?? 'not_started',
+    checklistStatus: displayStatus(checklist, row.lastCall ?? null),
+    lastCall: row.lastCall ?? null,
+    callAttempts: row.callAttempts ?? 0,
     failures: failureLabels(row),
     callbackCount: row.callbackCount,
   };
@@ -191,6 +200,7 @@ function makeGroup(key: string, technician: QueueTechnician | null, jobs: QueueJ
     jobs,
     submittedCount: jobs.filter((j) => j.checklistStatus === 'submitted').length,
     canceledCount: jobs.filter((j) => j.workState === 'canceled').length,
+    notReachedCount: jobs.filter((j) => j.checklistStatus === 'not_reached').length,
   };
 }
 

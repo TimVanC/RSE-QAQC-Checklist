@@ -1,10 +1,11 @@
-import { ClipboardCheckIcon, ClipboardListIcon } from 'lucide-react';
+import { ClipboardCheckIcon, ClipboardListIcon, PhoneMissedIcon } from 'lucide-react';
 import Link from 'next/link';
 import { Fragment } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { LogCallDialog } from '@/components/calls/log-call-dialog';
 import { TechContact } from '@/components/app/tech-contact';
 import type {
   ChecklistDisplayStatus,
@@ -12,14 +13,15 @@ import type {
   QueueGroup,
   QueueJob,
 } from '@/src/server/queries/queue';
-import { formatApp } from '@/src/lib/time';
+import { CALL_OUTCOME_LABELS } from '@/src/lib/calls';
+import { formatApp, type IsoDate } from '@/src/lib/time';
 import { cn } from '@/src/lib/utils';
 
 // Time | Customer | Job | Job status | Checklist | action
 // Every track has a fixed or fr width so the header row and the job rows line up exactly
 // (an `auto` last track would collapse in the header, where it is empty, and shift the labels).
 const ROW_GRID =
-  'lg:grid-cols-[8.5rem_minmax(0,1.4fr)_minmax(0,1fr)_7rem_minmax(0,12rem)_8.5rem] lg:items-center lg:gap-x-4';
+  'lg:grid-cols-[8.5rem_minmax(0,1.4fr)_minmax(0,1fr)_7rem_minmax(0,12rem)_14rem] lg:items-center lg:gap-x-4';
 
 const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 
@@ -48,6 +50,11 @@ const CHECKLIST_STATUS: Record<ChecklistDisplayStatus, { label: string; classNam
     className:
       'border-transparent bg-emerald-100 text-emerald-900 dark:bg-emerald-400/15 dark:text-emerald-300',
   },
+  not_reached: {
+    label: 'Not reached',
+    className:
+      'border-transparent bg-rose-100 text-rose-900 dark:bg-rose-400/15 dark:text-rose-300',
+  },
 };
 
 function timeRange(job: QueueJob): string {
@@ -56,11 +63,18 @@ function timeRange(job: QueueJob): string {
   return end ? `${start} – ${end}` : start;
 }
 
-function JobRow({ job }: { job: QueueJob }) {
+function JobRow({ job, date }: { job: QueueJob; date: IsoDate }) {
   const work = WORK_STATUS[job.workState];
   const checklist = CHECKLIST_STATUS[job.checklistStatus];
   const ChecklistIcon =
-    job.checklistStatus === 'submitted' ? ClipboardCheckIcon : ClipboardListIcon;
+    job.checklistStatus === 'submitted'
+      ? ClipboardCheckIcon
+      : job.checklistStatus === 'not_reached'
+        ? PhoneMissedIcon
+        : ClipboardListIcon;
+  const lastCallTitle = job.lastCall
+    ? `Last call: ${CALL_OUTCOME_LABELS[job.lastCall.outcome]} · ${formatApp(job.lastCall.at, 'MMM d, h:mm a')}${job.lastCall.byName ? ` by ${job.lastCall.byName}` : ''}${job.lastCall.note ? ` · ${job.lastCall.note}` : ''}`
+    : undefined;
   const meta = [
     job.jobTypeName,
     job.totalAmountCents ? usd.format(job.totalAmountCents / 100) : null,
@@ -137,10 +151,19 @@ function JobRow({ job }: { job: QueueJob }) {
         </Badge>
       </div>
       <div className="col-span-2 flex min-w-0 flex-wrap items-center gap-1 lg:col-span-1">
-        <Badge variant="outline" className={checklist.className} title="Checklist status">
+        <Badge
+          variant="outline"
+          className={checklist.className}
+          title={lastCallTitle ?? 'Checklist status'}
+        >
           <ChecklistIcon data-icon="inline-start" />
           {checklist.label}
         </Badge>
+        {job.callAttempts > 0 && (
+          <Badge variant="outline" className="text-muted-foreground" title={lastCallTitle}>
+            {job.callAttempts} call{job.callAttempts === 1 ? '' : 's'}
+          </Badge>
+        )}
         {job.failures.length > 0 && (
           <Badge
             variant="destructive"
@@ -160,7 +183,20 @@ function JobRow({ job }: { job: QueueJob }) {
           </Badge>
         )}
       </div>
-      <div className="col-span-2 pt-1 lg:col-span-1 lg:justify-self-end lg:pt-0">
+      <div className="col-span-2 flex flex-col gap-1.5 pt-1 sm:flex-row sm:justify-end lg:col-span-1 lg:justify-self-end lg:pt-0">
+        {job.checklistStatus !== 'submitted' && job.workState !== 'canceled' && (
+          <LogCallDialog
+            hcpJobId={job.hcpJobId}
+            callDate={date}
+            customerName={job.customerName || 'this job'}
+            trigger={
+              <Button variant="ghost" size="sm" className="h-10 w-full sm:w-auto lg:h-7">
+                <PhoneMissedIcon data-icon="inline-start" />
+                Not reached
+              </Button>
+            }
+          />
+        )}
         <Button
           variant="outline"
           size="sm"
@@ -176,7 +212,7 @@ function JobRow({ job }: { job: QueueJob }) {
 }
 
 /** One technician (or the Unassigned bucket) with that day's jobs. */
-export function TechnicianSection({ group }: { group: QueueGroup }) {
+export function TechnicianSection({ group, date }: { group: QueueGroup; date: IsoDate }) {
   const color = group.technician?.colorHex;
   return (
     <Card size="sm" className="gap-0 pb-0">
@@ -194,6 +230,7 @@ export function TechnicianSection({ group }: { group: QueueGroup }) {
           <span className="text-xs font-normal text-muted-foreground">
             {group.jobs.length} job{group.jobs.length === 1 ? '' : 's'} · {group.submittedCount}{' '}
             submitted
+            {group.notReachedCount > 0 && ` · ${group.notReachedCount} not reached`}
             {group.canceledCount > 0 && ` · ${group.canceledCount} canceled`}
           </span>
           {group.technician && (
@@ -224,7 +261,7 @@ export function TechnicianSection({ group }: { group: QueueGroup }) {
         {group.jobs.map((job, i) => (
           <Fragment key={job.hcpJobId}>
             {i > 0 && <Separator />}
-            <JobRow job={job} />
+            <JobRow job={job} date={date} />
           </Fragment>
         ))}
       </CardContent>

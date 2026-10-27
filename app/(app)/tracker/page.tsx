@@ -37,6 +37,11 @@ const STATUS: Record<TrackerStatus, { label: string; className: string }> = {
     className:
       'border-transparent bg-amber-100 text-amber-900 dark:bg-amber-400/15 dark:text-amber-300',
   },
+  not_reached: {
+    label: 'Not reached',
+    className:
+      'border-transparent bg-rose-100 text-rose-900 dark:bg-rose-400/15 dark:text-rose-300',
+  },
   missing: {
     label: 'Missing',
     className: 'border-transparent bg-destructive/10 text-destructive dark:bg-destructive/20',
@@ -60,6 +65,12 @@ function CountBadges({ counts }: { counts: TrackerCounts }) {
       >
         {counts.inProgress} in progress
       </Badge>
+      <Badge
+        variant="outline"
+        className={counts.notReached > 0 ? STATUS.not_reached.className : ''}
+      >
+        {counts.notReached} not reached
+      </Badge>
       <Badge variant={counts.missing > 0 ? 'destructive' : 'outline'}>
         {counts.missing} missing
       </Badge>
@@ -74,7 +85,9 @@ function StatusChip({ job }: { job: TrackerJob }) {
       ? job.checklistId
         ? 'Checklist opened but not started'
         : 'No checklist yet'
-      : undefined;
+      : job.status === 'not_reached' && job.lastCall
+        ? `${job.callAttempts} call${job.callAttempts === 1 ? '' : 's'}; last ${formatApp(job.lastCall.at, 'MMM d, h:mm a')}${job.lastCall.note ? ` · ${job.lastCall.note}` : ''}`
+        : undefined;
   return (
     <Badge variant="outline" className={style.className} title={title}>
       {style.label}

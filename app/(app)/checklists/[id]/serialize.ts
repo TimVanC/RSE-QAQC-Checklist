@@ -95,5 +95,13 @@ export function serializeChecklistDetail(detail: ChecklistDetail): WorkspaceData
     })),
     submittedByName: detail.submittedByName,
     reopenedByName: detail.reopenedByName,
+    callLog: detail.callLog.map((e) => ({
+      id: e.id,
+      callDate: e.callDate,
+      outcome: e.outcome,
+      note: e.note,
+      calledAt: e.calledAt.toISOString(),
+      calledByName: e.calledByName,
+    })),
   };
 }

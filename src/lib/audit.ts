@@ -3,7 +3,7 @@ import { auditLog } from '@/src/db/schema/system';
 
 export interface AuditEntry {
   userId: string | null;
-  entity: 'checklist' | 'checklist_answer' | 'app_user' | 'pay_period' | 'app_setting' | 'technician';
+  entity: 'checklist' | 'checklist_answer' | 'app_user' | 'pay_period' | 'app_setting' | 'technician' | 'call_log';
   entityId: string;
   action: string;
   before?: Record<string, unknown> | null;

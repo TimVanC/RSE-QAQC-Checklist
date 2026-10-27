@@ -13,6 +13,7 @@ vi.mock('next/link', () => ({
   default: ({ href, children, ...rest }: { href: string; children?: ReactNode }) =>
     createElement('a', { href, ...rest }, children),
 }));
+vi.mock('@/src/server/actions/calls', () => ({ logCall: vi.fn() }));
 vi.mock('@/src/server/actions/checklists', () => ({
   saveAnswer: vi.fn(),
   saveField: vi.fn(),
@@ -82,6 +83,7 @@ function makeData(
     parent: null,
     callbacks: [],
     submittedByName: null,
+    callLog: [],
     reopenedByName: null,
     ...overrides,
   };
@@ -109,6 +111,8 @@ describe('ChecklistWorkspace (server render)', () => {
     expect(html).toContain('/queue?date=2026-07-06');
     // step 22 = Y is a failure: the red flag shows in the score panel
     expect(html).toContain('Red · 1 failure');
+    expect(html).toContain('Call log');
+    expect(html).toContain('No calls logged yet');
     expect(html).toContain('Technician contact');
     expect(html).toContain('href="tel:+12015550101"');
     expect(html).toContain('href="https://wa.me/12015550101"');

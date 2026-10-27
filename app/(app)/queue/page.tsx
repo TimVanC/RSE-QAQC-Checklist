@@ -35,6 +35,7 @@ export default async function QueuePage(props: PageProps<'/queue'>) {
   const longDate = format(parseISO(date), 'EEEE, MMMM d, yyyy');
   const jobs = new Map(groups.flatMap((g) => g.jobs.map((j) => [j.hcpJobId, j] as const)));
   const submitted = [...jobs.values()].filter((j) => j.checklistStatus === 'submitted').length;
+  const notReached = [...jobs.values()].filter((j) => j.checklistStatus === 'not_reached').length;
   const syncTitle = lastSync
     ? `Last successful sync: ${formatApp(lastSync.finishedAt)} (${SYNC_KIND_LABELS[lastSync.kind] ?? lastSync.kind})`
     : undefined;
@@ -50,6 +51,7 @@ export default async function QueuePage(props: PageProps<'/queue'>) {
               <>
                 {' '}
                 · {jobs.size} job{jobs.size === 1 ? '' : 's'}, {submitted} submitted
+                {notReached > 0 && `, ${notReached} not reached`}
               </>
             )}
           </p>
@@ -132,7 +134,7 @@ export default async function QueuePage(props: PageProps<'/queue'>) {
       ) : (
         <div className="space-y-4">
           {groups.map((group) => (
-            <TechnicianSection key={group.key} group={group} />
+            <TechnicianSection key={group.key} group={group} date={date} />
           ))}
         </div>
       )}

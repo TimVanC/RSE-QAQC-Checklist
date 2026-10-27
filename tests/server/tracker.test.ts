@@ -53,6 +53,20 @@ describe('trackerStatus', () => {
     expect(trackerStatus('in_progress')).toBe('in_progress');
     expect(trackerStatus('submitted')).toBe('submitted');
   });
+
+  it('reports not reached when the last call attempt failed and nothing changed since', () => {
+    const at = new Date('2026-10-27T01:00:00Z');
+    const noAnswer = { outcome: 'no_answer' as const, at, note: null, byName: null };
+    expect(trackerStatus(null, noAnswer)).toBe('not_reached');
+    expect(trackerStatus('in_progress', noAnswer, new Date('2026-10-27T00:00:00Z'))).toBe(
+      'not_reached',
+    );
+    expect(trackerStatus('in_progress', noAnswer, new Date('2026-10-27T02:00:00Z'))).toBe(
+      'in_progress',
+    );
+    expect(trackerStatus('submitted', noAnswer)).toBe('submitted');
+    expect(trackerStatus(null, { ...noAnswer, outcome: 'reached' })).toBe('missing');
+  });
 });
 
 describe('countTrackerJobs', () => {
@@ -64,8 +78,14 @@ describe('countTrackerJobs', () => {
         { status: 'in_progress' },
         { status: 'missing' },
       ]),
-    ).toEqual({ jobs: 4, submitted: 2, inProgress: 1, missing: 1 });
-    expect(countTrackerJobs([])).toEqual({ jobs: 0, submitted: 0, inProgress: 0, missing: 0 });
+    ).toEqual({ jobs: 4, submitted: 2, inProgress: 1, notReached: 0, missing: 1 });
+    expect(countTrackerJobs([])).toEqual({
+      jobs: 0,
+      submitted: 0,
+      inProgress: 0,
+      notReached: 0,
+      missing: 0,
+    });
   });
 });
 
@@ -95,16 +115,40 @@ describe('buildTracker', () => {
 
     expect(marcus.jobs.map((j) => j.hcpJobId)).toEqual(['job-1', 'job-2', 'job-3']);
     expect(marcus.jobs.map((j) => j.status)).toEqual(['missing', 'in_progress', 'submitted']);
-    expect(marcus.counts).toEqual({ jobs: 3, submitted: 1, inProgress: 1, missing: 1 });
+    expect(marcus.counts).toEqual({
+      jobs: 3,
+      submitted: 1,
+      inProgress: 1,
+      notReached: 0,
+      missing: 1,
+    });
     expect(marcus.jobs[2].callbackCount).toBe(2);
 
     expect(dana.jobs.map((j) => j.hcpJobId)).toEqual(['job-4', 'job-3']);
-    expect(dana.counts).toEqual({ jobs: 2, submitted: 1, inProgress: 0, missing: 1 });
+    expect(dana.counts).toEqual({
+      jobs: 2,
+      submitted: 1,
+      inProgress: 0,
+      notReached: 0,
+      missing: 1,
+    });
 
     expect(luis.jobs).toEqual([]);
-    expect(luis.counts).toEqual({ jobs: 0, submitted: 0, inProgress: 0, missing: 0 });
+    expect(luis.counts).toEqual({
+      jobs: 0,
+      submitted: 0,
+      inProgress: 0,
+      notReached: 0,
+      missing: 0,
+    });
 
-    expect(tracker.totals).toEqual({ jobs: 4, submitted: 1, inProgress: 1, missing: 2 });
+    expect(tracker.totals).toEqual({
+      jobs: 4,
+      submitted: 1,
+      inProgress: 1,
+      notReached: 0,
+      missing: 2,
+    });
     expect(tracker.technicianId).toBeNull();
   });
 
@@ -127,7 +171,13 @@ describe('buildTracker', () => {
     expect(tracker.technicianId).toBe('t-marcus');
     expect(tracker.groups).toHaveLength(1);
     expect(tracker.groups[0].technician.id).toBe('t-marcus');
-    expect(tracker.totals).toEqual({ jobs: 3, submitted: 1, inProgress: 1, missing: 1 });
+    expect(tracker.totals).toEqual({
+      jobs: 3,
+      submitted: 1,
+      inProgress: 1,
+      notReached: 0,
+      missing: 1,
+    });
     expect(tracker.technicians).toHaveLength(3);
   });
 

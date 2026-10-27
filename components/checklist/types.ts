@@ -3,7 +3,7 @@
  * Dates are ISO strings; Housecall Pro raw JSON is never sent to the browser.
  */
 import type { AnswerValue, ChecklistType, ProjectType } from '@/src/config/checklist-steps';
-import type { AnswerSource, ChecklistStatus, Role } from '@/src/db/schema/enums';
+import type { AnswerSource, CallOutcome, ChecklistStatus, Role } from '@/src/db/schema/enums';
 
 export interface WorkspaceChecklist {
   id: string;
@@ -74,6 +74,15 @@ export interface WorkspaceLinkedChecklist {
   submittedAt: string | null;
 }
 
+export interface WorkspaceCallEntry {
+  id: string;
+  callDate: string;
+  outcome: CallOutcome;
+  note: string | null;
+  calledAt: string;
+  calledByName: string | null;
+}
+
 export interface WorkspaceUser {
   id: string;
   name: string;
@@ -91,4 +100,5 @@ export interface WorkspaceData {
   callbacks: WorkspaceLinkedChecklist[];
   submittedByName: string | null;
   reopenedByName: string | null;
+  callLog: WorkspaceCallEntry[];
 }

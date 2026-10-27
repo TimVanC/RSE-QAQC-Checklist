@@ -4,18 +4,23 @@ import { alias } from 'drizzle-orm/pg-core';
 import { getDb } from '@/src/db';
 import { checklistScores, checklists } from '@/src/db/schema/checklists';
 import type { ChecklistStatus } from '@/src/db/schema/enums';
+import { isNotReached, type LastCall } from '@/src/lib/calls';
 import { failureLabels } from '@/src/lib/scoring/failure-labels';
 import { hcpJobAssignees, hcpJobs, technicians } from '@/src/db/schema/hcp';
 import { appSettings } from '@/src/db/schema/system';
 import type { PayPeriodSpan } from '@/src/lib/pay-periods';
 import { appDayRange, compareDates } from '@/src/lib/time';
+import { getCallSummaries } from './calls';
 import { getTrackingStartDate } from './settings';
 import { excludeJobTypes, parseExcludedJobTypes } from './queue-groups';
 
 const EXCLUDED_JOB_TYPES_KEY = 'excluded_job_types';
 
-/** Where a job stands for pay validation: no checklist or not started counts as missing. */
-export type TrackerStatus = 'submitted' | 'in_progress' | 'missing';
+/**
+ * Where a job stands for pay validation: no checklist or not started counts as missing;
+ * `not_reached` when the team called and the technician did not answer (see src/lib/calls.ts).
+ */
+export type TrackerStatus = 'submitted' | 'in_progress' | 'not_reached' | 'missing';
 
 export interface TrackerTechnician {
   id: string;
@@ -34,6 +39,9 @@ export interface TrackerRow {
   scheduledStart: Date | null;
   checklistId: string | null;
   checklistStatus: ChecklistStatus | null;
+  checklistUpdatedAt?: Date | null;
+  lastCall?: LastCall | null;
+  callAttempts?: number;
   failOpsCheck?: number | null;
   failQaqc?: number | null;
   failToolControl?: number | null;
@@ -50,6 +58,8 @@ export interface TrackerJob {
   checklistId: string | null;
   checklistStatus: ChecklistStatus | null;
   status: TrackerStatus;
+  lastCall: LastCall | null;
+  callAttempts: number;
   /** Workbook failure flags currently set on the checklist. */
   failures: string[];
   callbackCount: number;
@@ -59,6 +69,7 @@ export interface TrackerCounts {
   jobs: number;
   submitted: number;
   inProgress: number;
+  notReached: number;
   missing: number;
 }
 
@@ -83,17 +94,31 @@ export interface Tracker {
   trackingStartApplied?: boolean;
 }
 
-export function trackerStatus(status: ChecklistStatus | null | undefined): TrackerStatus {
+export function trackerStatus(
+  status: ChecklistStatus | null | undefined,
+  lastCall: LastCall | null = null,
+  checklistUpdatedAt: Date | null = null,
+): TrackerStatus {
   if (status === 'submitted') return 'submitted';
+  if (isNotReached(status ? { status, updatedAt: checklistUpdatedAt } : null, lastCall)) {
+    return 'not_reached';
+  }
   if (status === 'in_progress') return 'in_progress';
   return 'missing';
 }
 
 export function countTrackerJobs(jobs: ReadonlyArray<{ status: TrackerStatus }>): TrackerCounts {
-  const counts: TrackerCounts = { jobs: jobs.length, submitted: 0, inProgress: 0, missing: 0 };
+  const counts: TrackerCounts = {
+    jobs: jobs.length,
+    submitted: 0,
+    inProgress: 0,
+    notReached: 0,
+    missing: 0,
+  };
   for (const job of jobs) {
     if (job.status === 'submitted') counts.submitted += 1;
     else if (job.status === 'in_progress') counts.inProgress += 1;
+    else if (job.status === 'not_reached') counts.notReached += 1;
     else counts.missing += 1;
   }
   return counts;
@@ -147,7 +172,13 @@ export function buildTracker(input: {
       scheduledStart: row.scheduledStart,
       checklistId: row.checklistId,
       checklistStatus: row.checklistStatus,
-      status: trackerStatus(row.checklistStatus),
+      status: trackerStatus(
+        row.checklistStatus,
+        row.lastCall ?? null,
+        row.checklistUpdatedAt ?? null,
+      ),
+      lastCall: row.lastCall ?? null,
+      callAttempts: row.callAttempts ?? 0,
       failures: failureLabels(row),
       callbackCount: Number(row.callbackCount) || 0,
     });
@@ -185,7 +216,9 @@ export async function getTracker(
   const db = getDb();
   // Jobs before the tracking start date (set when the app went live) are not counted as missing.
   const trackingStartDate = await getTrackingStartDate();
-  const trackingStartApplied = Boolean(trackingStartDate && compareDates(trackingStartDate, period.start_date) > 0);
+  const trackingStartApplied = Boolean(
+    trackingStartDate && compareDates(trackingStartDate, period.start_date) > 0,
+  );
   const effectiveStart = trackingStartApplied ? trackingStartDate! : period.start_date;
   const start = appDayRange(effectiveStart).start;
   const end = appDayRange(period.end_date).end;
@@ -208,6 +241,7 @@ export async function getTracker(
       scheduledStart: hcpJobs.scheduledStart,
       checklistId: task.id,
       checklistStatus: task.status,
+      checklistUpdatedAt: task.updatedAt,
       failOpsCheck: checklistScores.failOpsCheck,
       failQaqc: checklistScores.failQaqc,
       failToolControl: checklistScores.failToolControl,
@@ -263,10 +297,14 @@ export async function getTracker(
     settingQuery,
   ]);
 
+  const calls = await getCallSummaries([...new Set(rows.map((r) => r.hcpJobId))]);
   return {
     ...buildTracker({
       technicians: techRows,
-      rows,
+      rows: rows.map((r) => {
+        const c = calls.get(r.hcpJobId);
+        return { ...r, lastCall: c?.last ?? null, callAttempts: c?.attempts ?? 0 };
+      }),
       excludedJobTypes: parseExcludedJobTypes(setting?.value),
       technicianId: technicianId ?? null,
     }),
