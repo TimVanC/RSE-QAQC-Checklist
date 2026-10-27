@@ -68,6 +68,8 @@ export async function getQueueForDate(date: IsoDate): Promise<QueueForDate> {
       technicianFirstName: technicians.firstName,
       technicianLastName: technicians.lastName,
       technicianColorHex: technicians.colorHex,
+      technicianMobile: technicians.mobile,
+      technicianEmail: technicians.email,
       checklistId: task.id,
       checklistStatus: task.status,
       checklistSubmittedAt: task.submittedAt,

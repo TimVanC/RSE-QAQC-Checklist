@@ -12,6 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { TechContact } from '@/components/app/tech-contact';
 import { formatApp } from '@/src/lib/time';
 import { setTechnicianFlag } from '@/src/server/actions/technicians';
 
@@ -19,6 +20,7 @@ export interface TechnicianRowData {
   id: string;
   name: string;
   email: string | null;
+  mobile: string | null;
   hcpRole: string | null;
   colorHex: string | null;
   isTechnician: boolean;
@@ -52,7 +54,7 @@ export function TechniciansTable({ rows }: { rows: TechnicianRowData[] }) {
             Name
           </TableHead>
           <TableHead>Housecall Pro role</TableHead>
-          <TableHead>Email</TableHead>
+          <TableHead>Contact</TableHead>
           <TableHead>Technician</TableHead>
           <TableHead>Active</TableHead>
           <TableHead>Last synced</TableHead>
@@ -78,7 +80,15 @@ export function TechniciansTable({ rows }: { rows: TechnicianRowData[] }) {
                 <span className="text-muted-foreground">—</span>
               )}
             </TableCell>
-            <TableCell className="text-muted-foreground">{row.email ?? '—'}</TableCell>
+            <TableCell>
+              <TechContact
+                name={row.name}
+                mobile={row.mobile}
+                email={row.email}
+                className="-ml-1.5"
+              />
+              {!row.mobile && !row.email && <span className="text-muted-foreground">—</span>}
+            </TableCell>
             <TableCell>
               <label className="inline-flex items-center gap-2 text-sm">
                 <input

@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { TechContact } from '@/components/app/tech-contact';
 import type {
   ChecklistDisplayStatus,
   JobWorkState,
@@ -195,6 +196,14 @@ export function TechnicianSection({ group }: { group: QueueGroup }) {
             submitted
             {group.canceledCount > 0 && ` · ${group.canceledCount} canceled`}
           </span>
+          {group.technician && (
+            <TechContact
+              name={group.name}
+              mobile={group.technician.mobile}
+              email={group.technician.email}
+              className="basis-full sm:ml-auto sm:basis-auto"
+            />
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="px-0">

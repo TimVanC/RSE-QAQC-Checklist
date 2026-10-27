@@ -38,6 +38,12 @@ export interface WorkspaceJob {
   totalAmountCents: number | null;
 }
 
+export interface WorkspaceTechnician {
+  name: string;
+  mobile: string | null;
+  email: string | null;
+}
+
 export interface WorkspaceAnswer {
   value: AnswerValue | null;
   source: AnswerSource;
@@ -78,7 +84,7 @@ export interface WorkspaceData {
   checklist: WorkspaceChecklist;
   job: WorkspaceJob | null;
   technicianName: string | null;
-  assignedTechnicians: string[];
+  assignedTechnicians: WorkspaceTechnician[];
   answers: Record<string, WorkspaceAnswer>;
   score: WorkspaceScore | null;
   parent: { id: string; type: ChecklistType; status: ChecklistStatus } | null;

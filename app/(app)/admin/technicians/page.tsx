@@ -26,6 +26,7 @@ export default async function AdminTechniciansPage() {
           id: t.id,
           name: `${t.firstName} ${t.lastName}`.trim() || t.hcpEmployeeId,
           email: t.email,
+          mobile: t.mobile,
           hcpRole: t.hcpRole,
           colorHex: t.colorHex,
           isTechnician: t.isTechnician,

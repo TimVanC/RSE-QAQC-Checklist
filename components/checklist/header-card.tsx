@@ -15,15 +15,16 @@ import {
 } from '@/components/ui/select';
 import { PROJECT_TYPES, type ProjectType } from '@/src/config/checklist-steps';
 import { formatApp } from '@/src/lib/time';
+import { TechContact } from '@/components/app/tech-contact';
 import { AutosaveInput } from './autosave-input';
 import type { FieldName } from './fields';
-import type { WorkspaceChecklist, WorkspaceJob } from './types';
+import type { WorkspaceChecklist, WorkspaceJob, WorkspaceTechnician } from './types';
 
 export interface HeaderCardProps {
   checklist: WorkspaceChecklist;
   job: WorkspaceJob | null;
   technicianName: string | null;
-  assignedTechnicians: string[];
+  assignedTechnicians: WorkspaceTechnician[];
   status: 'in_progress' | 'submitted' | 'not_started';
   submittedByName: string | null;
   submittedAt: string | null;
@@ -153,7 +154,7 @@ export function HeaderCard({
             <Fact label="Scheduled">{scheduleText(job)}</Fact>
             <Fact label="Work status">{humanize(job.workStatus)}</Fact>
             <Fact label="Assigned">
-              {assignedTechnicians.length ? assignedTechnicians.join(', ') : '—'}
+              {assignedTechnicians.length ? assignedTechnicians.map((t) => t.name).join(', ') : '—'}
             </Fact>
             <Fact label="Checklist technician">{technicianName ?? '—'}</Fact>
             <Fact label="Total amount">{formatMoney(job.totalAmountCents)}</Fact>
@@ -164,6 +165,20 @@ export function HeaderCard({
           </p>
         )}
       </dl>
+
+      {assignedTechnicians.some((t) => t.mobile || t.email) && (
+        <div className="mt-3 space-y-1 border-t pt-3">
+          <div className="text-xs text-muted-foreground">Technician contact</div>
+          <ul className="space-y-0.5">
+            {assignedTechnicians.map((t) => (
+              <li key={t.name} className="flex flex-wrap items-center gap-x-2 text-sm">
+                <span className="font-medium">{t.name}</span>
+                <TechContact name={t.name} mobile={t.mobile} email={t.email} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="mt-4 grid grid-cols-1 gap-3 border-t pt-4 sm:grid-cols-2 lg:grid-cols-3">
         <div className="space-y-1.5">

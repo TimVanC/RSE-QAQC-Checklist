@@ -64,7 +64,7 @@ function makeData(
       totalAmountCents: 45000,
     },
     technicianName: 'Sam Tech',
-    assignedTechnicians: ['Sam Tech'],
+    assignedTechnicians: [{ name: 'Sam Tech', mobile: '2015550101', email: null }],
     answers: {
       s01: {
         value: null,
@@ -109,6 +109,10 @@ describe('ChecklistWorkspace (server render)', () => {
     expect(html).toContain('/queue?date=2026-07-06');
     // step 22 = Y is a failure: the red flag shows in the score panel
     expect(html).toContain('Red · 1 failure');
+    expect(html).toContain('Technician contact');
+    expect(html).toContain('href="tel:+12015550101"');
+    expect(html).toContain('href="https://wa.me/12015550101"');
+    expect(html).toContain('(201) 555-0101');
   });
 
   it('uses the call back wording and links back to the parent', () => {

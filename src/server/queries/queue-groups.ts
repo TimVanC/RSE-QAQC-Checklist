@@ -31,6 +31,8 @@ export interface QueueRow {
   technicianFirstName: string | null;
   technicianLastName: string | null;
   technicianColorHex: string | null;
+  technicianMobile?: string | null;
+  technicianEmail?: string | null;
   checklistId: string | null;
   checklistStatus: ChecklistStatus | null;
   checklistSubmittedAt: Date | null;
@@ -78,6 +80,8 @@ export interface QueueTechnician {
   lastName: string;
   name: string;
   colorHex: string | null;
+  mobile: string | null;
+  email: string | null;
 }
 
 export interface QueueGroup {
@@ -218,6 +222,8 @@ export function groupQueueRows(rows: QueueRow[]): QueueGroup[] {
         lastName,
         name: technicianName(firstName, lastName),
         colorHex: row.technicianColorHex,
+        mobile: row.technicianMobile ?? null,
+        email: row.technicianEmail ?? null,
       });
     }
   }

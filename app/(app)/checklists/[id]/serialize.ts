@@ -77,7 +77,11 @@ export function serializeChecklistDetail(detail: ChecklistDetail): WorkspaceData
         }
       : null,
     technicianName: detail.technician ? techName(detail.technician) : null,
-    assignedTechnicians: detail.assignedTechnicians.map(techName),
+    assignedTechnicians: detail.assignedTechnicians.map((t) => ({
+      name: techName(t),
+      mobile: t.mobile,
+      email: t.email,
+    })),
     answers,
     score,
     parent: detail.parent
