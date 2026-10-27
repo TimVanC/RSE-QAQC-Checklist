@@ -96,6 +96,15 @@ function JobRow({ job, date }: { job: QueueJob; date: IsoDate }) {
         )}
       >
         {timeRange(job)}
+        {job.dayPosition && (
+          <Badge
+            variant="outline"
+            className="ml-2 h-4.5 px-1.5 text-[0.7rem] font-medium text-muted-foreground lg:mt-0.5 lg:ml-0 lg:block lg:w-fit"
+            title="Multi-day job: runs on more than one day"
+          >
+            Day {job.dayPosition.index} of {job.dayPosition.count}
+          </Badge>
+        )}
       </div>
       <div
         className={cn(

@@ -4,6 +4,7 @@
  */
 import type { ChecklistStatus } from '@/src/db/schema/enums';
 import { displayStatus, type ChecklistDisplayStatus, type LastCall } from '@/src/lib/calls';
+import type { JobDayPosition } from '@/src/lib/job-days';
 import { failureLabels } from '@/src/lib/scoring/failure-labels';
 
 export type { ChecklistDisplayStatus, LastCall };
@@ -40,6 +41,8 @@ export interface QueueRow {
   /** Newest call attempt for the job and how many there were (see getCallSummaries). */
   lastCall?: LastCall | null;
   callAttempts?: number;
+  /** "Day 2 of 3" for multi-day jobs; null on single-day jobs. */
+  dayPosition?: JobDayPosition | null;
   failOpsCheck?: number | null;
   failQaqc?: number | null;
   failToolControl?: number | null;
@@ -75,6 +78,7 @@ export interface QueueJob {
   checklistStatus: ChecklistDisplayStatus;
   lastCall: LastCall | null;
   callAttempts: number;
+  dayPosition: JobDayPosition | null;
   /** Workbook failure flags currently set on the checklist (empty when clean or not started). */
   failures: string[];
   callbackCount: number;
@@ -186,6 +190,7 @@ function toJob(row: QueueRow): QueueJob {
     checklistStatus: displayStatus(checklist, row.lastCall ?? null),
     lastCall: row.lastCall ?? null,
     callAttempts: row.callAttempts ?? 0,
+    dayPosition: row.dayPosition ?? null,
     failures: failureLabels(row),
     callbackCount: row.callbackCount,
   };
