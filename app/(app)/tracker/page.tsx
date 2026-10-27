@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { OpenActionsCard } from '@/components/actions/open-actions-card';
 import { PeriodSelect } from '@/components/periods/period-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -14,6 +15,7 @@ import {
 import { requirePageRole } from '@/src/lib/auth/session';
 import { formatApp } from '@/src/lib/time';
 import { cn } from '@/src/lib/utils';
+import { getOpenActions } from '@/src/server/queries/corrective-actions';
 import { getPeriodNavigation } from '@/src/server/queries/pay-periods';
 import {
   getTracker,
@@ -236,6 +238,7 @@ function TechnicianCard({ group }: { group: TrackerGroup }) {
 export default async function TrackerPage(props: PageProps<'/tracker'>) {
   await requirePageRole('manager');
   const { period: rawPeriod, technician: rawTechnician } = await props.searchParams;
+  const openActions = await getOpenActions();
   const nav = await getPeriodNavigation(typeof rawPeriod === 'string' ? rawPeriod : undefined);
   const { period } = nav;
   const tracker = await getTracker(
@@ -308,6 +311,7 @@ export default async function TrackerPage(props: PageProps<'/tracker'>) {
             )}
           </div>
           <div className="space-y-4">
+            <OpenActionsCard actions={openActions} canResolve />
             {withJobs.map((group) => (
               <TechnicianCard key={group.technician.id} group={group} />
             ))}

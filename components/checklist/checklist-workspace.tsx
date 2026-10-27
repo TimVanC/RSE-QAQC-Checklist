@@ -13,6 +13,7 @@ import {
   type ReactNode,
 } from 'react';
 import { toast } from 'sonner';
+import { StepActions } from '@/components/actions/corrective-actions';
 import { CallLogCard } from '@/components/calls/call-log-card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -24,6 +25,7 @@ import {
   type StepDef,
 } from '@/src/config/checklist-steps';
 import { hasRole } from '@/src/lib/auth/roles';
+import { groupActionsByStep } from '@/src/lib/corrective-actions';
 import { formatApp } from '@/src/lib/time';
 import {
   createCallbackChecklist,
@@ -188,7 +190,9 @@ export function ChecklistWorkspace({ data, currentUser }: ChecklistWorkspaceProp
   const [reopenedByName, setReopenedByName] = useState(data.reopenedByName);
   const [callDate, setCallDate] = useState(checklist.callDate);
   const readOnly = status === 'submitted';
+  const actionsByStep = groupActionsByStep(data.actions);
   const canReopen = readOnly && hasRole(currentUser.role, 'manager');
+  const canResolveActions = hasRole(currentUser.role, 'manager');
   const readOnlyRef = useRef(readOnly);
   useEffect(() => {
     readOnlyRef.current = readOnly;
@@ -483,14 +487,28 @@ export function ChecklistWorkspace({ data, currentUser }: ChecklistWorkspaceProp
   }
 
   function renderExtra(step: StepDef): ReactNode {
+    const stepActions = actionsByStep.get(step.key) ?? [];
+    const followUps = (
+      <StepActions
+        checklistId={checklist.id}
+        stepKey={step.key}
+        stepTitle={`Step ${step.label}: ${stepText(step, checklist.type)}`}
+        actions={stepActions}
+        failed={values[step.key] === 'N'}
+        canResolve={canResolveActions}
+      />
+    );
     if (step.triggersCallback && !isCallback) {
       return (
-        <CallbackSection
-          answeredYes={values[step.key] === 'Y'}
-          callbacks={data.callbacks}
-          creating={creatingCallback}
-          onCreate={createCallback}
-        />
+        <>
+          <CallbackSection
+            answeredYes={values[step.key] === 'Y'}
+            callbacks={data.callbacks}
+            creating={creatingCallback}
+            onCreate={createCallback}
+          />
+          {followUps}
+        </>
       );
     }
     if (step.scoringRole === 'completed' && isCallback && data.parent) {
@@ -503,7 +521,7 @@ export function ChecklistWorkspace({ data, currentUser }: ChecklistWorkspaceProp
         </Link>
       );
     }
-    return null;
+    return followUps;
   }
 
   return (

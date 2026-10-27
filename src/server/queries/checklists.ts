@@ -21,6 +21,7 @@ import {
 import { appUsers } from '@/src/db/schema/users';
 import { computeAutoChecks, type AutoCheckMap } from '@/src/lib/hcp/auto-checks';
 import { getCallLogForJob, type CallLogEntry } from './calls';
+import { getActionsForChecklist, type CorrectiveActionEntry } from './corrective-actions';
 
 export interface ChecklistDetail {
   checklist: Checklist;
@@ -35,6 +36,8 @@ export interface ChecklistDetail {
   reopenedByName: string | null;
   /** Every call attempt for the job, newest first. */
   callLog: CallLogEntry[];
+  /** Follow-ups attached to failed steps, open first. */
+  actions: CorrectiveActionEntry[];
 }
 
 export async function getTaskChecklistForJob(hcpJobId: string): Promise<Checklist | null> {
@@ -97,7 +100,10 @@ export async function getChecklistDetail(id: string): Promise<ChecklistDetail | 
     parent = p ?? null;
   }
 
-  const callLog = await getCallLogForJob(checklist.hcpJobId);
+  const [callLog, actions] = await Promise.all([
+    getCallLogForJob(checklist.hcpJobId),
+    getActionsForChecklist(id),
+  ]);
 
   const callbacks = await db
     .select({
@@ -134,6 +140,7 @@ export async function getChecklistDetail(id: string): Promise<ChecklistDetail | 
     submittedByName: checklist.submittedBy ? (names.get(checklist.submittedBy) ?? null) : null,
     reopenedByName: checklist.reopenedBy ? (names.get(checklist.reopenedBy) ?? null) : null,
     callLog,
+    actions,
   };
 }
 

@@ -22,6 +22,13 @@
       "when": 1793126867247,
       "tag": "0002_steady_the_fury",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793127299689,
+      "tag": "0003_silly_rafael_vega",
+      "breakpoints": true
     }
   ]
 }

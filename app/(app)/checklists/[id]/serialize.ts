@@ -103,5 +103,18 @@ export function serializeChecklistDetail(detail: ChecklistDetail): WorkspaceData
       calledAt: e.calledAt.toISOString(),
       calledByName: e.calledByName,
     })),
+    actions: detail.actions.map((a) => ({
+      id: a.id,
+      stepKey: a.stepKey,
+      description: a.description,
+      owner: a.owner,
+      dueDate: a.dueDate,
+      status: a.status,
+      resolutionNote: a.resolutionNote,
+      createdAt: a.createdAt.toISOString(),
+      createdByName: a.createdByName,
+      resolvedAt: iso(a.resolvedAt),
+      resolvedByName: a.resolvedByName,
+    })),
   };
 }

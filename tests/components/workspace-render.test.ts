@@ -14,6 +14,11 @@ vi.mock('next/link', () => ({
     createElement('a', { href, ...rest }, children),
 }));
 vi.mock('@/src/server/actions/calls', () => ({ logCall: vi.fn() }));
+vi.mock('@/src/server/actions/corrective-actions', () => ({
+  createCorrectiveAction: vi.fn(),
+  resolveCorrectiveAction: vi.fn(),
+  reopenCorrectiveAction: vi.fn(),
+}));
 vi.mock('@/src/server/actions/checklists', () => ({
   saveAnswer: vi.fn(),
   saveField: vi.fn(),
@@ -84,6 +89,7 @@ function makeData(
     callbacks: [],
     submittedByName: null,
     callLog: [],
+    actions: [],
     reopenedByName: null,
     ...overrides,
   };
@@ -117,6 +123,35 @@ describe('ChecklistWorkspace (server render)', () => {
     expect(html).toContain('href="tel:+12015550101"');
     expect(html).toContain('href="https://wa.me/12015550101"');
     expect(html).toContain('(201) 555-0101');
+  });
+
+  it('offers a follow-up on failed steps and lists existing ones', () => {
+    const data = makeData({
+      answers: {
+        s02: { value: 'N', source: 'manual', autoSuggestedValue: null, autoEvidence: null },
+      },
+      actions: [
+        {
+          id: 'a1',
+          stepKey: 's02',
+          description: 'Bring the signed copy back',
+          owner: 'Office',
+          dueDate: '2026-07-10',
+          status: 'open',
+          resolutionNote: null,
+          createdAt: '2026-07-06T20:00:00.000Z',
+          createdByName: 'Caller One',
+          resolvedAt: null,
+          resolvedByName: null,
+        },
+      ],
+    });
+    const html = render(data, caller);
+    expect(html).toContain('Add follow-up');
+    expect(html).toContain('Bring the signed copy back');
+    expect(html).toContain('Due 2026-07-10');
+    expect(html).not.toContain('>Resolve<');
+    expect(render(data, manager)).toContain('Resolve');
   });
 
   it('uses the call back wording and links back to the parent', () => {
