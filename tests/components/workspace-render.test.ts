@@ -14,6 +14,7 @@ vi.mock('next/link', () => ({
     createElement('a', { href, ...rest }, children),
 }));
 vi.mock('@/src/server/actions/calls', () => ({ logCall: vi.fn() }));
+vi.mock('@/src/server/actions/import-workbook', () => ({ importWorkbook: vi.fn() }));
 vi.mock('@/src/server/actions/corrective-actions', () => ({
   createCorrectiveAction: vi.fn(),
   resolveCorrectiveAction: vi.fn(),
@@ -117,6 +118,7 @@ describe('ChecklistWorkspace (server render)', () => {
     expect(html).toContain('/queue?date=2026-07-06');
     // step 22 = Y is a failure: the red flag shows in the score panel
     expect(html).toContain('Red · 1 failure');
+    expect(html).toContain('Import workbook');
     expect(html).toContain('Call log');
     expect(html).toContain('No calls logged yet');
     expect(html).toContain('Technician contact');
@@ -199,6 +201,7 @@ describe('ChecklistWorkspace (server render)', () => {
     expect(asCaller).toContain('This checklist is read-only');
     expect(asCaller).not.toContain('>Reopen<');
     expect(asCaller).not.toContain('Submit checklist');
+    expect(asCaller).not.toContain('Import workbook');
     expect(render(data, manager)).toContain('>Reopen<');
   });
 });

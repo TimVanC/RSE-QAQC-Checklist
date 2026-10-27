@@ -38,6 +38,7 @@ import {
 import { AutosaveInput, AutosaveTextarea } from './autosave-input';
 import { callSaveField, type FieldName } from './fields';
 import { HeaderCard } from './header-card';
+import { ImportWorkbookDialog } from './import-workbook-dialog';
 import {
   clampIndex,
   exitsField,
@@ -592,12 +593,15 @@ export function ChecklistWorkspace({ data, currentUser }: ChecklistWorkspaceProp
         <section aria-label="Checklist steps" className="min-w-0 lg:col-start-1 lg:row-start-1">
           <div className="mb-2 flex items-center justify-between gap-2">
             <h2 className="text-sm font-medium">Steps</h2>
-            {/* Keyboard help only where there is likely a keyboard. */}
-            <div className="hidden items-center gap-2 md:flex">
-              <span className="text-xs text-muted-foreground">
-                j/k or ↑/↓ to move · y/n/b to answer
-              </span>
-              <ShortcutsPopover open={helpOpen} onOpenChange={setHelpOpen} />
+            <div className="flex items-center gap-2">
+              {!readOnly && <ImportWorkbookDialog checklistId={checklist.id} />}
+              {/* Keyboard help only where there is likely a keyboard. */}
+              <div className="hidden items-center gap-2 md:flex">
+                <span className="text-xs text-muted-foreground">
+                  j/k or ↑/↓ to move · y/n/b to answer
+                </span>
+                <ShortcutsPopover open={helpOpen} onOpenChange={setHelpOpen} />
+              </div>
             </div>
           </div>
           <div
