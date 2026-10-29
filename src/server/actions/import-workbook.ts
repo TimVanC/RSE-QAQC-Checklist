@@ -11,7 +11,8 @@ import { readCsvCells, type SheetCells } from '@/src/lib/workbook/cells';
 import { candidateSheets, extractChecklist, type SheetSummary } from '@/src/lib/workbook/extract';
 import { readXlsx } from '@/src/lib/workbook/xlsx';
 
-export const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
+// Not exported: a 'use server' module may only export async functions.
+const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
 
 export type ImportWorkbookResult =
   | { ok: true; data: { answers: number; fields: number; problems: string[]; sheet: string } }
