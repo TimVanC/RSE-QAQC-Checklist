@@ -109,6 +109,29 @@ describe('groupQueueRows', () => {
     ]);
   });
 
+  it("flags a shared job until a lead is set, then carries each technician's role", () => {
+    const unset = groupQueueRows([
+      row('shared', 8, TECHS.marcus),
+      row('shared', 8, TECHS.dana),
+      row('solo', 9, TECHS.dana),
+    ]);
+    const dana = unset.find((g) => g.key === 't-dana')!;
+    expect(dana.jobs.find((j) => j.hcpJobId === 'shared')).toMatchObject({
+      rolesNeeded: true,
+      roles: {},
+    });
+    expect(dana.jobs.find((j) => j.hcpJobId === 'solo')).toMatchObject({ rolesNeeded: false });
+
+    const set = groupQueueRows([
+      row('shared', 8, TECHS.marcus, { technicianRole: 'lead' }),
+      row('shared', 8, TECHS.dana, { technicianRole: 'assistant' }),
+    ]);
+    expect(set[0].jobs[0]).toMatchObject({
+      rolesNeeded: false,
+      roles: { 't-marcus': 'lead', 't-dana': 'assistant' },
+    });
+  });
+
   it('puts jobs without a technician in Unassigned, last', () => {
     const groups = groupQueueRows([row('orphan', 7, TECHS.none), row('j1', 9, TECHS.marcus)]);
     expect(groups.map((g) => g.key)).toEqual(['t-marcus', 'unassigned']);

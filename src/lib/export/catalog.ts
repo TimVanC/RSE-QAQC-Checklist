@@ -46,8 +46,8 @@ export const DATASET_INFO: Record<ExportDataset, DatasetInfo> = {
   jobs: {
     title: 'Jobs',
     description:
-      'Housecall Pro jobs held in the app, with schedule, status, amounts and assigned technicians. ' +
-      'The raw Housecall Pro payloads are not included.',
+      'Housecall Pro jobs held in the app, with schedule, status, amounts, assigned technicians and ' +
+      'the lead / assistant roles set on shared jobs. The raw Housecall Pro payloads are not included.',
   },
   technicians: {
     title: 'Technicians',

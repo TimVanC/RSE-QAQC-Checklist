@@ -150,7 +150,9 @@ describe('toCsv', () => {
     const parsed = parseCsv(toCsv(rows));
     expect(parsed[0]).toEqual(['id', 'text']);
     // Everything round-trips except formula-looking text, which is neutralised with a leading apostrophe.
-    expect(parsed.slice(1)).toEqual(awkward.map((value, i) => [String(i), value === '=1+1' ? "'=1+1" : value]));
+    expect(parsed.slice(1)).toEqual(
+      awkward.map((value, i) => [String(i), value === '=1+1' ? "'=1+1" : value]),
+    );
   });
 
   it('neutralises spreadsheet formula injection in string fields only', () => {
@@ -337,7 +339,12 @@ describe('dataset column definitions', () => {
       expect(columns).not.toContain('raw_json');
     }
     expect(DATASETS.jobs.columns).toEqual(
-      expect.arrayContaining(['hcp_job_id', 'assigned_technicians']),
+      expect.arrayContaining([
+        'hcp_job_id',
+        'assigned_technicians',
+        'lead_technician',
+        'assistant_technicians',
+      ]),
     );
     expect(DATASETS.answers.columns).toEqual(
       expect.arrayContaining([

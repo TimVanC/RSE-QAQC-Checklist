@@ -2,9 +2,10 @@
  * Pure shaping for the call queue: flat job x technician rows -> technician groups.
  * No database or server-only imports, so it is unit tested directly (tests/server/queue.test.ts).
  */
-import type { ChecklistStatus } from '@/src/db/schema/enums';
+import type { ChecklistStatus, TechnicianRole } from '@/src/db/schema/enums';
 import { displayStatus, type ChecklistDisplayStatus, type LastCall } from '@/src/lib/calls';
 import type { JobDayPosition } from '@/src/lib/job-days';
+import { rolesNeeded } from '@/src/lib/job-roles';
 import { failureLabels } from '@/src/lib/scoring/failure-labels';
 
 export type { ChecklistDisplayStatus, LastCall };
@@ -43,6 +44,8 @@ export interface QueueRow {
   callAttempts?: number;
   /** "Day 2 of 3" for multi-day jobs; null on single-day jobs. */
   dayPosition?: JobDayPosition | null;
+  /** This technician's lead/assistant role on the job, where the call team set one. */
+  technicianRole?: TechnicianRole | null;
   failOpsCheck?: number | null;
   failQaqc?: number | null;
   failToolControl?: number | null;
@@ -79,6 +82,10 @@ export interface QueueJob {
   lastCall: LastCall | null;
   callAttempts: number;
   dayPosition: JobDayPosition | null;
+  /** Lead/assistant per technician id on this job (empty until the call team sets it). */
+  roles: Record<string, TechnicianRole>;
+  /** A shared job with no lead chosen yet, so its production credit is still an even split. */
+  rolesNeeded: boolean;
   /** Workbook failure flags currently set on the checklist (empty when clean or not started). */
   failures: string[];
   callbackCount: number;
@@ -191,6 +198,8 @@ function toJob(row: QueueRow): QueueJob {
     lastCall: row.lastCall ?? null,
     callAttempts: row.callAttempts ?? 0,
     dayPosition: row.dayPosition ?? null,
+    roles: {},
+    rolesNeeded: false,
     failures: failureLabels(row),
     callbackCount: row.callbackCount,
   };
@@ -228,6 +237,7 @@ export function groupQueueRows(rows: QueueRow[]): QueueGroup[] {
     }
     if (!row.technicianId) continue;
     techIds.add(row.technicianId);
+    if (row.technicianRole) jobs.get(row.hcpJobId)!.roles[row.technicianId] = row.technicianRole;
     if (!techs.has(row.technicianId)) {
       const firstName = row.technicianFirstName ?? '';
       const lastName = row.technicianLastName ?? '';
@@ -247,6 +257,9 @@ export function groupQueueRows(rows: QueueRow[]): QueueGroup[] {
   const unassigned: QueueJob[] = [];
   for (const [jobId, job] of jobs) {
     const techIds = jobTechs.get(jobId) ?? new Set<string>();
+    job.rolesNeeded = rolesNeeded(
+      [...techIds].map((technicianId) => ({ technicianId, role: job.roles[technicianId] ?? null })),
+    );
     if (techIds.size === 0) unassigned.push(job);
     for (const id of techIds) {
       const list = byTech.get(id);

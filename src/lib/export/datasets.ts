@@ -11,7 +11,9 @@ import {
   type ChecklistAnswer,
   type ChecklistScoreRow,
 } from '@/src/db/schema/checklists';
+import type { TechnicianRole } from '@/src/db/schema/enums';
 import { hcpJobAssignees, hcpJobs, technicians } from '@/src/db/schema/hcp';
+import { jobRoles } from '@/src/db/schema/job-roles';
 import { auditLog } from '@/src/db/schema/system';
 import { appUsers } from '@/src/db/schema/users';
 import type { ExportDataset } from './catalog';
@@ -345,12 +347,17 @@ export const JOB_COLUMNS = [
   ...columnNames(JOB_DB_COLUMNS),
   'assigned_technicians',
   'assigned_hcp_employee_ids',
+  'lead_technician',
+  'assistant_technicians',
 ];
 
-/** Housecall Pro jobs (no raw payload) with the names and employee ids of the assigned technicians. */
+/**
+ * Housecall Pro jobs (no raw payload) with the names and employee ids of the assigned technicians,
+ * and the lead / assistant roles the call team set on shared jobs (blank when not set).
+ */
 export async function exportJobs(): Promise<ExportRow[]> {
   const db = getDb();
-  const [rows, assignments, techs] = await Promise.all([
+  const [rows, assignments, roleRows, techs] = await Promise.all([
     db
       .select(JOB_DB_COLUMNS)
       .from(hcpJobs)
@@ -358,26 +365,45 @@ export async function exportJobs(): Promise<ExportRow[]> {
     db
       .select({ hcpJobId: hcpJobAssignees.hcpJobId, technicianId: hcpJobAssignees.technicianId })
       .from(hcpJobAssignees),
+    db
+      .select({
+        hcpJobId: jobRoles.hcpJobId,
+        technicianId: jobRoles.technicianId,
+        role: jobRoles.role,
+      })
+      .from(jobRoles),
     loadTechnicians(db),
   ]);
+  const roles = new Map<string, Map<string, TechnicianRole>>();
+  for (const r of roleRows) {
+    const byTech = roles.get(r.hcpJobId) ?? new Map<string, TechnicianRole>();
+    byTech.set(r.technicianId, r.role);
+    roles.set(r.hcpJobId, byTech);
+  }
 
-  const assigned = new Map<string, TechnicianRef[]>();
+  const assigned = new Map<string, Array<TechnicianRef & { id: string }>>();
   for (const { hcpJobId, technicianId } of assignments) {
     const tech = techs.get(technicianId);
     if (!tech) continue;
     const list = assigned.get(hcpJobId);
-    if (list) list.push(tech);
-    else assigned.set(hcpJobId, [tech]);
+    if (list) list.push({ ...tech, id: technicianId });
+    else assigned.set(hcpJobId, [{ ...tech, id: technicianId }]);
   }
 
   return rows.map((row) => {
     const techsForJob = (assigned.get(row.hcpJobId) ?? []).sort((a, b) =>
       a.name.localeCompare(b.name),
     );
+    const roleOf = (id: string) => roles.get(row.hcpJobId)?.get(id);
     return {
       ...toColumnNames(row, JOB_DB_COLUMNS),
       assigned_technicians: techsForJob.map((t) => t.name).join('; '),
       assigned_hcp_employee_ids: techsForJob.map((t) => t.hcpEmployeeId).join('; '),
+      lead_technician: techsForJob.find((t) => roleOf(t.id) === 'lead')?.name ?? '',
+      assistant_technicians: techsForJob
+        .filter((t) => roleOf(t.id) === 'assistant')
+        .map((t) => t.name)
+        .join('; '),
     };
   });
 }

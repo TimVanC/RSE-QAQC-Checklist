@@ -14,6 +14,8 @@ import type {
   QueueJob,
 } from '@/src/server/queries/queue';
 import { CALL_OUTCOME_LABELS } from '@/src/lib/calls';
+import type { TechnicianRole } from '@/src/db/schema/enums';
+import { TECHNICIAN_ROLE_LABELS } from '@/src/lib/job-roles';
 import { formatApp, type IsoDate } from '@/src/lib/time';
 import { cn } from '@/src/lib/utils';
 
@@ -63,7 +65,16 @@ function timeRange(job: QueueJob): string {
   return end ? `${start} – ${end}` : start;
 }
 
-function JobRow({ job, date }: { job: QueueJob; date: IsoDate }) {
+function JobRow({
+  job,
+  date,
+  technicianRole,
+}: {
+  job: QueueJob;
+  date: IsoDate;
+  /** This group's technician's role on the job (null for a lone technician or when not set). */
+  technicianRole: TechnicianRole | null;
+}) {
   const work = WORK_STATUS[job.workState];
   const checklist = CHECKLIST_STATUS[job.checklistStatus];
   const ChecklistIcon =
@@ -103,6 +114,24 @@ function JobRow({ job, date }: { job: QueueJob; date: IsoDate }) {
             title="Multi-day job: runs on more than one day"
           >
             Day {job.dayPosition.index} of {job.dayPosition.count}
+          </Badge>
+        )}
+        {technicianRole && (
+          <Badge
+            variant="outline"
+            className="ml-2 h-4.5 px-1.5 text-[0.7rem] font-medium text-muted-foreground lg:mt-0.5 lg:ml-0 lg:block lg:w-fit"
+            title={`Shared job: ${technicianRole === 'lead' ? 'lead, 60%' : 'assistant, 40%'} of the production credit`}
+          >
+            {TECHNICIAN_ROLE_LABELS[technicianRole]}
+          </Badge>
+        )}
+        {job.rolesNeeded && (
+          <Badge
+            variant="outline"
+            className="ml-2 h-4.5 border-amber-500 px-1.5 text-[0.7rem] font-medium text-amber-700 lg:mt-0.5 lg:ml-0 lg:block lg:w-fit"
+            title="Shared job: mark the lead technician on the checklist so production credit splits 60/40"
+          >
+            Roles not set
           </Badge>
         )}
       </div>
@@ -270,7 +299,11 @@ export function TechnicianSection({ group, date }: { group: QueueGroup; date: Is
         {group.jobs.map((job, i) => (
           <Fragment key={job.hcpJobId}>
             {i > 0 && <Separator />}
-            <JobRow job={job} date={date} />
+            <JobRow
+              job={job}
+              date={date}
+              technicianRole={group.technician ? (job.roles[group.technician.id] ?? null) : null}
+            />
           </Fragment>
         ))}
       </CardContent>

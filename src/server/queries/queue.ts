@@ -8,6 +8,7 @@ import { appSettings, syncRuns, webhookEvents, type SyncRun } from '@/src/db/sch
 import { MAX_SPAN_DAYS, jobDayPosition, jobDays } from '@/src/lib/job-days';
 import { addDays, appDayRange, type IsoDate } from '@/src/lib/time';
 import { getCallSummaries } from './calls';
+import { getRolesForJobs } from './job-roles';
 import {
   excludeJobTypes,
   groupQueueRows,
@@ -154,8 +155,9 @@ export async function getQueueForDate(date: IsoDate): Promise<QueueForDate> {
   const excluded = parseExcludedJobTypes(setting?.value);
   const kept = excludeJobTypes<QueueRow>(rows, excluded);
   const jobIds = [...new Set(kept.map((r) => r.hcpJobId))];
-  const [calls, appointmentRows] = await Promise.all([
+  const [calls, roles, appointmentRows] = await Promise.all([
     getCallSummaries(jobIds),
+    getRolesForJobs(jobIds),
     jobIds.length === 0
       ? []
       : db
@@ -185,6 +187,9 @@ export async function getQueueForDate(date: IsoDate): Promise<QueueForDate> {
         lastCall: c?.last ?? null,
         callAttempts: c?.attempts ?? 0,
         dayPosition: jobDayPosition(days, date),
+        technicianRole: r.technicianId
+          ? (roles.get(r.hcpJobId)?.get(r.technicianId) ?? null)
+          : null,
       };
     }),
   );
