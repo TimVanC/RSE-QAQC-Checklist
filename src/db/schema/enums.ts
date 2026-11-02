@@ -29,6 +29,7 @@ export const syncKindEnum = pgEnum('sync_kind', [
 export const syncStatusEnum = pgEnum('sync_status', ['running', 'ok', 'error']);
 export const callOutcomeEnum = pgEnum('call_outcome', ['reached', 'no_answer', 'callback_later']);
 export const actionStatusEnum = pgEnum('action_status', ['open', 'resolved']);
+export const technicianRoleEnum = pgEnum('technician_role', ['lead', 'assistant']);
 export const webhookStatusEnum = pgEnum('webhook_status', [
   'pending',
   'processed',
@@ -40,4 +41,5 @@ export type Role = (typeof roleEnum.enumValues)[number];
 export type ChecklistStatus = (typeof checklistStatusEnum.enumValues)[number];
 export type ActionStatus = (typeof actionStatusEnum.enumValues)[number];
 export type CallOutcome = (typeof callOutcomeEnum.enumValues)[number];
+export type TechnicianRole = (typeof technicianRoleEnum.enumValues)[number];
 export type AnswerSource = (typeof answerSourceEnum.enumValues)[number];

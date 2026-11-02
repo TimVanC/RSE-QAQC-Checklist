@@ -6,3 +6,4 @@ export * from './checklists';
 export * from './system';
 export * from './calls';
 export * from './corrective-actions';
+export * from './job-roles';
