@@ -186,6 +186,30 @@ describe('buildTracker', () => {
     expect(tracker.technicianId).toBeNull();
     expect(tracker.groups).toHaveLength(3);
   });
+
+  it('flags a shared job until a lead is chosen, even when filtered to one technician', () => {
+    const shared = [
+      row('t-marcus', 'job-s', 14, 'submitted'),
+      row('t-luis', 'job-s', 14, 'submitted'),
+      row('t-marcus', 'job-solo', 15, null),
+    ];
+    const unset = buildTracker({ technicians: TECHS, rows: shared, technicianId: 't-marcus' });
+    const jobs = new Map(unset.groups[0].jobs.map((j) => [j.hcpJobId, j]));
+    expect(jobs.get('job-s')).toMatchObject({ rolesNeeded: true, technicianRole: null });
+    expect(jobs.get('job-solo')).toMatchObject({ rolesNeeded: false, technicianRole: null });
+
+    const set = buildTracker({
+      technicians: TECHS,
+      rows: [
+        row('t-marcus', 'job-s', 14, 'submitted', { technicianRole: 'lead' }),
+        row('t-luis', 'job-s', 14, 'submitted', { technicianRole: 'assistant' }),
+      ],
+    });
+    const marcus = set.groups.find((g) => g.technician.id === 't-marcus')!.jobs[0];
+    const luis = set.groups.find((g) => g.technician.id === 't-luis')!.jobs[0];
+    expect(marcus).toMatchObject({ rolesNeeded: false, technicianRole: 'lead' });
+    expect(luis).toMatchObject({ rolesNeeded: false, technicianRole: 'assistant' });
+  });
 });
 
 describe('pay period resolution', () => {

@@ -3,14 +3,16 @@ import { and, asc, eq, gte, isNull, lt, notIlike } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { getDb } from '@/src/db';
 import { checklistScores, checklists } from '@/src/db/schema/checklists';
-import type { ChecklistStatus } from '@/src/db/schema/enums';
+import type { ChecklistStatus, TechnicianRole } from '@/src/db/schema/enums';
 import { isNotReached, type LastCall } from '@/src/lib/calls';
+import { rolesNeeded, type Assignee } from '@/src/lib/job-roles';
 import { failureLabels } from '@/src/lib/scoring/failure-labels';
 import { hcpJobAssignees, hcpJobs, technicians } from '@/src/db/schema/hcp';
 import { appSettings } from '@/src/db/schema/system';
 import type { PayPeriodSpan } from '@/src/lib/pay-periods';
 import { appDayRange, compareDates } from '@/src/lib/time';
 import { getCallSummaries } from './calls';
+import { getRolesForJobs } from './job-roles';
 import { getTrackingStartDate } from './settings';
 import { excludeJobTypes, parseExcludedJobTypes } from './queue-groups';
 
@@ -47,6 +49,8 @@ export interface TrackerRow {
   failToolControl?: number | null;
   failCallback?: number | null;
   callbackCount: number;
+  /** This technician's lead/assistant role on the job, where the call team set one. */
+  technicianRole?: TechnicianRole | null;
 }
 
 export interface TrackerJob {
@@ -63,6 +67,10 @@ export interface TrackerJob {
   /** Workbook failure flags currently set on the checklist. */
   failures: string[];
   callbackCount: number;
+  /** This technician's role on the job (null when not set, or the job has one technician). */
+  technicianRole: TechnicianRole | null;
+  /** A shared job with no lead chosen yet, so its production credit is still an even split. */
+  rolesNeeded: boolean;
 }
 
 export interface TrackerCounts {
@@ -159,6 +167,15 @@ export function buildTracker(input: {
     );
 
   const rows = excludeJobTypes([...input.rows], [...(input.excludedJobTypes ?? [])]);
+  // Every technician on each job (across all rows, before the technician filter) with their role.
+  const assigneesByJob = new Map<string, Assignee[]>();
+  for (const row of rows) {
+    const list = assigneesByJob.get(row.hcpJobId) ?? [];
+    if (!list.some((a) => a.technicianId === row.technicianId)) {
+      list.push({ technicianId: row.technicianId, role: row.technicianRole ?? null });
+      assigneesByJob.set(row.hcpJobId, list);
+    }
+  }
   const jobsByTech = new Map<string, Map<string, TrackerJob>>();
   for (const row of rows) {
     let jobs = jobsByTech.get(row.technicianId);
@@ -181,6 +198,8 @@ export function buildTracker(input: {
       callAttempts: row.callAttempts ?? 0,
       failures: failureLabels(row),
       callbackCount: Number(row.callbackCount) || 0,
+      technicianRole: row.technicianRole ?? null,
+      rolesNeeded: rolesNeeded(assigneesByJob.get(row.hcpJobId) ?? []),
     });
   }
 
@@ -297,13 +316,19 @@ export async function getTracker(
     settingQuery,
   ]);
 
-  const calls = await getCallSummaries([...new Set(rows.map((r) => r.hcpJobId))]);
+  const jobIds = [...new Set(rows.map((r) => r.hcpJobId))];
+  const [calls, roles] = await Promise.all([getCallSummaries(jobIds), getRolesForJobs(jobIds)]);
   return {
     ...buildTracker({
       technicians: techRows,
       rows: rows.map((r) => {
         const c = calls.get(r.hcpJobId);
-        return { ...r, lastCall: c?.last ?? null, callAttempts: c?.attempts ?? 0 };
+        return {
+          ...r,
+          lastCall: c?.last ?? null,
+          callAttempts: c?.attempts ?? 0,
+          technicianRole: roles.get(r.hcpJobId)?.get(r.technicianId) ?? null,
+        };
       }),
       excludedJobTypes: parseExcludedJobTypes(setting?.value),
       technicianId: technicianId ?? null,

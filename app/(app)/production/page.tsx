@@ -19,6 +19,12 @@ function pct(value: number | null): string {
   return value === null ? '—' : value.toFixed(1);
 }
 
+/** Whole numbers as they are; a 60/40 split shows one decimal (1.6, 0.4). */
+function count(value: number): string {
+  const rounded = Math.round(value * 10) / 10;
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+}
+
 const NUM = 'text-right tabular-nums';
 /** Technician column stays put while the 12 figure columns scroll sideways. */
 const STICKY = 'sticky left-0 z-10 shadow-[inset_-1px_0_0_var(--border)]';
@@ -27,16 +33,16 @@ function Cells({ line }: { line: ProductionLine }) {
   const r = line.rollup;
   return (
     <>
-      <TableCell className={NUM}>{r.total_service_quotes}</TableCell>
-      <TableCell className={NUM}>{r.total_in_progress}</TableCell>
-      <TableCell className={NUM}>{r.total_completed}</TableCell>
-      <TableCell className={NUM}>{r.callbacks}</TableCell>
+      <TableCell className={NUM}>{count(r.total_service_quotes)}</TableCell>
+      <TableCell className={NUM}>{count(r.total_in_progress)}</TableCell>
+      <TableCell className={NUM}>{count(r.total_completed)}</TableCell>
+      <TableCell className={NUM}>{count(r.callbacks)}</TableCell>
       <TableCell className={NUM}>{pct(r.approved_pct)}</TableCell>
       <TableCell className={NUM}>{pct(r.declined_pct)}</TableCell>
       <TableCell className={NUM}>{pct(r.in_progress_pct)}</TableCell>
       <TableCell className={NUM}>{pct(r.completed_pct)}</TableCell>
-      <TableCell className={NUM}>{r.black}</TableCell>
-      <TableCell className={cn(NUM, r.red > 0 && 'text-destructive')}>{r.red}</TableCell>
+      <TableCell className={NUM}>{count(r.black)}</TableCell>
+      <TableCell className={cn(NUM, r.red > 0 && 'text-destructive')}>{count(r.red)}</TableCell>
       <TableCell className={NUM}>{pct(r.bottom_line_pct)}</TableCell>
       <TableCell className={NUM}>
         {line.submitted}
@@ -161,7 +167,8 @@ export default async function ProductionPage(props: PageProps<'/production'>) {
       )}
       <p className="text-xs text-muted-foreground">
         Figures follow the Excel workbook formulas: task checklists only; call backs are counted
-        separately.
+        separately. A job with two technicians credits 60% to the lead and 40% to the assistant (set
+        on the checklist), so a shared job counts once in the Total row.
       </p>
     </div>
   );

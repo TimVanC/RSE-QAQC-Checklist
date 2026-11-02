@@ -5,6 +5,7 @@ import { getDb } from '@/src/db';
 import { checklistScores, checklists } from '@/src/db/schema/checklists';
 import type { ChecklistStatus } from '@/src/db/schema/enums';
 import { hcpJobAssignees, technicians } from '@/src/db/schema/hcp';
+import { creditShares, type Assignee, type CreditShare } from '@/src/lib/job-roles';
 import type { PayPeriodSpan } from '@/src/lib/pay-periods';
 import type { Flag } from '@/src/lib/scoring/checklist-score';
 import {
@@ -12,6 +13,7 @@ import {
   type ProductionRollup,
   type ScoredChecklist,
 } from '@/src/lib/scoring/rollup';
+import { getRolesForJobs } from './job-roles';
 
 export interface ProductionTechnician {
   id: string;
@@ -26,10 +28,10 @@ export interface ProductionChecklistRow {
   /** Technician the checklist was created for (fallback when no assignees are known). */
   technicianId: string | null;
   /**
-   * Every technician assigned to the job in Housecall Pro. A shared job credits each of them
-   * (as it would appear in each of their workbooks); totals still count the checklist once.
+   * Production credit per technician assigned to the job in Housecall Pro: a lone technician gets
+   * 1, a lead 0.6 and an assistant 0.4 (src/lib/job-roles.ts). Totals still count the checklist once.
    */
-  technicianIds?: readonly string[];
+  credits?: readonly CreditShare[];
   type: ChecklistType;
   status: ChecklistStatus;
   serviceQuote: number | null;
@@ -75,16 +77,21 @@ export function toScoredChecklist(row: ProductionChecklistRow): ScoredChecklist 
   };
 }
 
+interface Credited {
+  row: ProductionChecklistRow;
+  weight: number;
+}
+
 function line(
   technicianId: string | null,
   name: string,
-  rows: readonly ProductionChecklistRow[],
+  rows: readonly Credited[],
 ): ProductionLine {
   return {
     technicianId,
     name,
-    rollup: rollupProduction(rows.map(toScoredChecklist)),
-    submitted: rows.filter((r) => r.status === 'submitted').length,
+    rollup: rollupProduction(rows.map((r) => ({ ...toScoredChecklist(r.row), weight: r.weight }))),
+    submitted: rows.filter((r) => r.row.status === 'submitted').length,
     checklists: rows.length,
   };
 }
@@ -101,17 +108,21 @@ export function buildProduction(
   rows: readonly ProductionChecklistRow[],
 ): Production {
   const known = new Map(techs.map((t) => [t.id, t]));
-  const byTech = new Map<string | null, ProductionChecklistRow[]>();
-  const add = (key: string | null, row: ProductionChecklistRow) => {
+  const byTech = new Map<string | null, Credited[]>();
+  const add = (key: string | null, row: ProductionChecklistRow, weight: number) => {
     const list = byTech.get(key);
-    if (list) list.push(row);
-    else byTech.set(key, [row]);
+    if (list) list.push({ row, weight });
+    else byTech.set(key, [{ row, weight }]);
   };
   for (const row of rows) {
-    const candidates = row.technicianIds?.length ? row.technicianIds : row.technicianId ? [row.technicianId] : [];
-    const keys = [...new Set(candidates.filter((id) => known.has(id)))];
-    if (keys.length === 0) add(null, row);
-    for (const key of keys) add(key, row);
+    const credits = (row.credits ?? []).filter((c) => known.has(c.technicianId));
+    if (credits.length > 0) {
+      for (const c of credits) add(c.technicianId, row, c.share);
+    } else if (row.technicianId && known.has(row.technicianId)) {
+      add(row.technicianId, row, 1);
+    } else {
+      add(null, row, 1);
+    }
   }
 
   const listed = techs
@@ -133,7 +144,14 @@ export function buildProduction(
   const unassigned = byTech.get(null);
   if (unassigned) out.push(line(null, UNASSIGNED, unassigned));
 
-  return { rows: out, totals: line(null, 'Total', rows) };
+  return {
+    rows: out,
+    totals: line(
+      null,
+      'Total',
+      rows.map((row) => ({ row, weight: 1 })),
+    ),
+  };
 }
 
 /** Production counts for checklists whose call date falls in the period (calendar dates, inclusive). */
@@ -170,25 +188,42 @@ export async function getProduction(
       .from(technicians),
   ]);
 
-  // Every technician assigned to each job, so shared jobs credit everyone on them.
+  // Every technician assigned to each job, with the lead/assistant role where one was set, so a
+  // shared job is split 60/40 between them.
   const jobIds = [...new Set(rawRows.map((r) => r.hcpJobId))];
-  const assigneeRows =
+  const [assigneeRows, rolesByJob] =
     jobIds.length === 0
-      ? []
-      : await db
-          .select({ hcpJobId: hcpJobAssignees.hcpJobId, technicianId: hcpJobAssignees.technicianId })
-          .from(hcpJobAssignees)
-          .innerJoin(technicians, and(eq(technicians.id, hcpJobAssignees.technicianId), eq(technicians.isTechnician, true)))
-          .where(inArray(hcpJobAssignees.hcpJobId, jobIds));
-  const assigneesByJob = new Map<string, string[]>();
+      ? [[], new Map()]
+      : await Promise.all([
+          db
+            .select({
+              hcpJobId: hcpJobAssignees.hcpJobId,
+              technicianId: hcpJobAssignees.technicianId,
+            })
+            .from(hcpJobAssignees)
+            .innerJoin(
+              technicians,
+              and(
+                eq(technicians.id, hcpJobAssignees.technicianId),
+                eq(technicians.isTechnician, true),
+              ),
+            )
+            .where(inArray(hcpJobAssignees.hcpJobId, jobIds)),
+          getRolesForJobs(jobIds),
+        ]);
+  const assigneesByJob = new Map<string, Assignee[]>();
   for (const a of assigneeRows) {
+    const assignee: Assignee = {
+      technicianId: a.technicianId,
+      role: rolesByJob.get(a.hcpJobId)?.get(a.technicianId) ?? null,
+    };
     const list = assigneesByJob.get(a.hcpJobId);
-    if (list) list.push(a.technicianId);
-    else assigneesByJob.set(a.hcpJobId, [a.technicianId]);
+    if (list) list.push(assignee);
+    else assigneesByJob.set(a.hcpJobId, [assignee]);
   }
   const rows: ProductionChecklistRow[] = rawRows.map(({ hcpJobId, ...row }) => ({
     ...row,
-    technicianIds: assigneesByJob.get(hcpJobId) ?? [],
+    credits: creditShares(assigneesByJob.get(hcpJobId) ?? []),
   }));
   return buildProduction(techs, rows);
 }

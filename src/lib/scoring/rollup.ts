@@ -23,7 +23,16 @@ import type { ChecklistScore } from './checklist-score';
 
 export interface ScoredChecklist {
   type: ChecklistType;
-  score: Pick<ChecklistScore, 'service_quote' | 'in_progress' | 'completed' | 'perfect_task' | 'failures_value'>;
+  score: Pick<
+    ChecklistScore,
+    'service_quote' | 'in_progress' | 'completed' | 'perfect_task' | 'failures_value'
+  >;
+  /**
+   * Share of this checklist credited to the technician whose figures are being built: 1 (the
+   * default, and always the case in the workbook) or the lead/assistant split from
+   * src/lib/job-roles.ts. Totals over all technicians use 1 so a shared job counts once.
+   */
+  weight?: number;
 }
 
 export interface ProductionRollup {
@@ -38,9 +47,9 @@ export interface ProductionRollup {
   red: number;
   total: number;
   bottom_line_pct: number | null;
-  /** App-only: number of callback checklists in the input (never part of the figures above). */
+  /** App-only: callback checklists in the input, weighted like the figures above (never part of them). */
   callbacks: number;
-  /** App-only: number of task checklists in the input. */
+  /** App-only: number of task checklists in the input (a count, not weighted). */
   tasks: number;
 }
 
@@ -54,16 +63,17 @@ export function rollupProduction(rows: readonly ScoredChecklist[]): ProductionRo
   let callbacks = 0;
 
   for (const row of rows) {
+    const w = row.weight ?? 1;
     if (row.type !== 'task') {
-      callbacks += 1;
+      callbacks += w;
       continue;
     }
     tasks += 1;
-    quotes += row.score.service_quote;
-    inProgressRaw += row.score.in_progress;
-    completed += row.score.completed;
-    black += row.score.perfect_task;
-    red += row.score.failures_value;
+    quotes += w * row.score.service_quote;
+    inProgressRaw += w * row.score.in_progress;
+    completed += w * row.score.completed;
+    black += w * row.score.perfect_task;
+    red += w * row.score.failures_value;
   }
 
   const inProgress = inProgressRaw - completed;

@@ -179,22 +179,69 @@ describe('buildProduction', () => {
     expect(production.rows.at(-1)).toMatchObject({ technicianId: null, checklists: 1 });
   });
 
-  it('credits a shared job to every assigned technician but counts it once in the totals', () => {
-    const shared: ProductionChecklistRow = { ...cl('t-marcus', WORKBOOK.task1), technicianIds: ['t-marcus', 't-dana'] };
+  it('splits a shared job 60/40 between lead and assistant and counts it once in the totals', () => {
+    const shared: ProductionChecklistRow = {
+      ...cl('t-marcus', WORKBOOK.task1),
+      credits: [
+        { technicianId: 't-marcus', share: 0.6 },
+        { technicianId: 't-dana', share: 0.4 },
+      ],
+    };
     const production = buildProduction(TECHS, [shared]);
     const marcus = production.rows.find((r) => r.technicianId === 't-marcus');
     const dana = production.rows.find((r) => r.technicianId === 't-dana');
-    expect(marcus?.rollup.total_completed).toBe(1);
-    expect(dana?.rollup.total_completed).toBe(1);
+    expect(marcus?.rollup).toMatchObject({
+      total_service_quotes: 0.6,
+      total_completed: 0.6,
+      black: 0.6,
+      approved_pct: 100,
+      bottom_line_pct: 100,
+    });
+    expect(dana?.rollup).toMatchObject({
+      total_service_quotes: 0.4,
+      total_completed: 0.4,
+      black: 0.4,
+    });
+    // The Submitted column counts checklists, not credit.
     expect(marcus?.submitted).toBe(1);
     expect(dana?.submitted).toBe(1);
     expect(production.totals.rollup.total_completed).toBe(1);
     expect(production.totals.checklists).toBe(1);
   });
 
+  it('splits a shared job evenly while no lead has been chosen', () => {
+    const shared: ProductionChecklistRow = {
+      ...cl('t-marcus', WORKBOOK.task2),
+      credits: [
+        { technicianId: 't-marcus', share: 0.5 },
+        { technicianId: 't-dana', share: 0.5 },
+      ],
+    };
+    const production = buildProduction(TECHS, [shared]);
+    expect(production.rows.find((r) => r.technicianId === 't-marcus')?.rollup.red).toBe(0.5);
+    expect(production.rows.find((r) => r.technicianId === 't-dana')?.rollup.red).toBe(0.5);
+    expect(production.totals.rollup.red).toBe(1);
+  });
+
+  it('weights call backs like task figures', () => {
+    const shared: ProductionChecklistRow = {
+      ...cl('t-marcus', WORKBOOK.callback1, { type: 'callback' }),
+      credits: [
+        { technicianId: 't-marcus', share: 0.6 },
+        { technicianId: 't-dana', share: 0.4 },
+      ],
+    };
+    const production = buildProduction(TECHS, [shared]);
+    expect(production.rows.find((r) => r.technicianId === 't-marcus')?.rollup.callbacks).toBe(0.6);
+    expect(production.totals.rollup.callbacks).toBe(1);
+  });
+
   it('falls back to the checklist technician when no assignees are known, and to unassigned when neither is', () => {
-    const noAssignees = { ...cl('t-dana', WORKBOOK.task1), technicianIds: [] };
-    const unknownOnly = { ...cl(null, WORKBOOK.task2), technicianIds: ['t-deleted'] };
+    const noAssignees = { ...cl('t-dana', WORKBOOK.task1), credits: [] };
+    const unknownOnly = {
+      ...cl(null, WORKBOOK.task2),
+      credits: [{ technicianId: 't-deleted', share: 1 }],
+    };
     const production = buildProduction(TECHS, [noAssignees, unknownOnly]);
     expect(production.rows.find((r) => r.technicianId === 't-dana')?.checklists).toBe(1);
     expect(production.rows.at(-1)).toMatchObject({ technicianId: null, checklists: 1 });

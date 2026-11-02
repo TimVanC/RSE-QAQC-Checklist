@@ -13,6 +13,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { requirePageRole } from '@/src/lib/auth/session';
+import { LEAD_SHARE, sharePercent, TECHNICIAN_ROLE_LABELS } from '@/src/lib/job-roles';
 import { formatApp } from '@/src/lib/time';
 import { cn } from '@/src/lib/utils';
 import { getOpenActions } from '@/src/server/queries/corrective-actions';
@@ -124,6 +125,25 @@ function ChecklistCell({ job }: { job: TrackerJob }) {
         <span className="text-xs text-muted-foreground">
           + {plural(job.callbackCount, 'call back')}
         </span>
+      )}
+      {job.rolesNeeded ? (
+        <Badge
+          variant="outline"
+          className="border-amber-500 text-amber-700"
+          title="Shared job: mark the lead technician on the checklist so production credit splits 60/40"
+        >
+          Roles not set
+        </Badge>
+      ) : (
+        job.technicianRole && (
+          <span
+            className="text-xs text-muted-foreground"
+            title="Production credit on this shared job"
+          >
+            {TECHNICIAN_ROLE_LABELS[job.technicianRole]} ·{' '}
+            {sharePercent(job.technicianRole === 'lead' ? LEAD_SHARE : 1 - LEAD_SHARE)}
+          </span>
+        )
       )}
     </div>
   );
