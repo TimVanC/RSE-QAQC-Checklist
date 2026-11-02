@@ -1,11 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  creditShares,
-  LEAD_SHARE,
-  rolesNeeded,
-  sharePercent,
-  validateRoles,
-} from '@/src/lib/job-roles';
+import { creditShares, LEAD_SHARE, rolesNeeded, sharePercent } from '@/src/lib/job-roles';
 
 const A = 'tech-a';
 const B = 'tech-b';
@@ -131,19 +125,6 @@ describe('rolesNeeded', () => {
       ]),
     ).toBe(false);
     expect(rolesNeeded([])).toBe(false);
-  });
-});
-
-describe('validateRoles', () => {
-  const assignees = [
-    { technicianId: A, role: 'lead' as const },
-    { technicianId: B, role: null },
-  ];
-  it('allows one lead per job', () => {
-    expect(validateRoles(assignees, B, 'lead')).toMatch(/one lead/);
-    expect(validateRoles(assignees, A, 'lead')).toBeNull();
-    expect(validateRoles(assignees, B, 'assistant')).toBeNull();
-    expect(validateRoles(assignees, A, null)).toBeNull();
   });
 });
 

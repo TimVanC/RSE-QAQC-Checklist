@@ -9,6 +9,7 @@ import type {
   CallOutcome,
   ChecklistStatus,
   Role,
+  TechnicianRole,
 } from '@/src/db/schema/enums';
 
 export interface WorkspaceChecklist {
@@ -45,9 +46,12 @@ export interface WorkspaceJob {
 }
 
 export interface WorkspaceTechnician {
+  id: string;
   name: string;
   mobile: string | null;
   email: string | null;
+  /** Lead or assistant on this job, set by the call team; null until chosen. */
+  role: TechnicianRole | null;
 }
 
 export interface WorkspaceAnswer {

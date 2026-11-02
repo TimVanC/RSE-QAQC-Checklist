@@ -15,6 +15,7 @@ vi.mock('next/link', () => ({
 }));
 vi.mock('@/src/server/actions/calls', () => ({ logCall: vi.fn() }));
 vi.mock('@/src/server/actions/import-workbook', () => ({ importWorkbook: vi.fn() }));
+vi.mock('@/src/server/actions/job-roles', () => ({ setLeadTechnician: vi.fn() }));
 vi.mock('@/src/server/actions/corrective-actions', () => ({
   createCorrectiveAction: vi.fn(),
   resolveCorrectiveAction: vi.fn(),
@@ -71,7 +72,9 @@ function makeData(
       totalAmountCents: 45000,
     },
     technicianName: 'Sam Tech',
-    assignedTechnicians: [{ name: 'Sam Tech', mobile: '2015550101', email: null }],
+    assignedTechnicians: [
+      { id: 'tech-1', name: 'Sam Tech', mobile: '2015550101', email: null, role: null },
+    ],
     answers: {
       s01: {
         value: null,
@@ -125,6 +128,33 @@ describe('ChecklistWorkspace (server render)', () => {
     expect(html).toContain('href="tel:+12015550101"');
     expect(html).toContain('href="https://wa.me/12015550101"');
     expect(html).toContain('(201) 555-0101');
+  });
+
+  it('asks who led a shared job and shows the 60/40 split once set', () => {
+    const two = [
+      { id: 'tech-1', name: 'Sam Tech', mobile: null, email: null, role: null },
+      { id: 'tech-2', name: 'Alex Helper', mobile: null, email: null, role: null },
+    ];
+    const unset = render(makeData({ assignedTechnicians: two }));
+    expect(unset).toContain('Lead technician');
+    expect(unset).toContain('Roles not set');
+    expect(unset).toContain('No role · 50%');
+
+    const set = render(
+      makeData({
+        assignedTechnicians: [
+          { ...two[0], role: 'lead' },
+          { ...two[1], role: 'assistant' },
+        ],
+      }),
+    );
+    expect(set).not.toContain('Roles not set');
+    expect(set).toContain('Lead · 60%');
+    expect(set).toContain('Assistant · 40%');
+    expect(set).toContain('Sam Tech (Lead), Alex Helper (Assistant)');
+
+    // A lone technician never sees the control.
+    expect(render(makeData())).not.toContain('Lead technician');
   });
 
   it('offers a follow-up on failed steps and lists existing ones', () => {

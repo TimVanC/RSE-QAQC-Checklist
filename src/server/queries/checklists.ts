@@ -18,16 +18,20 @@ import {
   type HcpJobRow,
   type Technician,
 } from '@/src/db/schema/hcp';
+import type { TechnicianRole } from '@/src/db/schema/enums';
 import { appUsers } from '@/src/db/schema/users';
 import { computeAutoChecks, type AutoCheckMap } from '@/src/lib/hcp/auto-checks';
 import { getCallLogForJob, type CallLogEntry } from './calls';
 import { getActionsForChecklist, type CorrectiveActionEntry } from './corrective-actions';
+import { getRolesForJobs } from './job-roles';
 
 export interface ChecklistDetail {
   checklist: Checklist;
   job: HcpJobRow | null;
   technician: Technician | null;
   assignedTechnicians: Technician[];
+  /** Lead / assistant per assigned technician id, where the call team has set it. */
+  roles: Record<string, TechnicianRole>;
   answers: Record<string, ChecklistAnswer>;
   score: ChecklistScoreRow | null;
   parent: Pick<Checklist, 'id' | 'type' | 'status'> | null;
@@ -100,10 +104,12 @@ export async function getChecklistDetail(id: string): Promise<ChecklistDetail | 
     parent = p ?? null;
   }
 
-  const [callLog, actions] = await Promise.all([
+  const [callLog, actions, rolesByJob] = await Promise.all([
     getCallLogForJob(checklist.hcpJobId),
     getActionsForChecklist(id),
+    getRolesForJobs([checklist.hcpJobId]),
   ]);
+  const roles = Object.fromEntries(rolesByJob.get(checklist.hcpJobId) ?? []);
 
   const callbacks = await db
     .select({
@@ -133,6 +139,7 @@ export async function getChecklistDetail(id: string): Promise<ChecklistDetail | 
     job: job ?? null,
     technician,
     assignedTechnicians,
+    roles,
     answers,
     score: score ?? null,
     parent,

@@ -28,7 +28,7 @@ export interface CreditShare {
  * - Several technicians and no lead set: an even split, so the per-technician figures still add up
  *   to one checklist while the job waits for a role (see `rolesNeeded`).
  * - A job where everyone is marked assistant is treated like no lead set.
- * Two leads are rejected by `validateRoles` before they can be saved, but if they ever appear they
+ * The action that sets roles always demotes the previous lead, but if two leads ever appear they
  * share LEAD_SHARE between them so the shares still sum to 1.
  */
 export function creditShares(assignees: readonly Assignee[]): CreditShare[] {
@@ -52,22 +52,6 @@ export function creditShares(assignees: readonly Assignee[]): CreditShare[] {
 export function rolesNeeded(assignees: readonly Assignee[]): boolean {
   const ids = new Set(assignees.map((a) => a.technicianId));
   return ids.size > 1 && !assignees.some((a) => a.role === 'lead');
-}
-
-/**
- * Checks a proposed role change against the job's other assignees. Returns a message to show the
- * caller, or null when the change is fine. Clearing a role (null) is always allowed.
- */
-export function validateRoles(
-  assignees: readonly Assignee[],
-  technicianId: string,
-  role: TechnicianRole | null,
-): string | null {
-  if (role === 'lead') {
-    const otherLead = assignees.find((a) => a.technicianId !== technicianId && a.role === 'lead');
-    if (otherLead) return 'A job can only have one lead technician.';
-  }
-  return null;
 }
 
 /** Display helper: 0.6 -> "60%". */

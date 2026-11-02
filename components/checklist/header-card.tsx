@@ -14,10 +14,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { PROJECT_TYPES, type ProjectType } from '@/src/config/checklist-steps';
+import { TECHNICIAN_ROLE_LABELS } from '@/src/lib/job-roles';
 import { formatApp } from '@/src/lib/time';
 import { TechContact } from '@/components/app/tech-contact';
 import { AutosaveInput } from './autosave-input';
 import type { FieldName } from './fields';
+import { TechnicianRoles } from './technician-roles';
 import type { WorkspaceChecklist, WorkspaceJob, WorkspaceTechnician } from './types';
 
 export interface HeaderCardProps {
@@ -154,7 +156,11 @@ export function HeaderCard({
             <Fact label="Scheduled">{scheduleText(job)}</Fact>
             <Fact label="Work status">{humanize(job.workStatus)}</Fact>
             <Fact label="Assigned">
-              {assignedTechnicians.length ? assignedTechnicians.map((t) => t.name).join(', ') : '—'}
+              {assignedTechnicians.length
+                ? assignedTechnicians
+                    .map((t) => (t.role ? `${t.name} (${TECHNICIAN_ROLE_LABELS[t.role]})` : t.name))
+                    .join(', ')
+                : '—'}
             </Fact>
             <Fact label="Checklist technician">{technicianName ?? '—'}</Fact>
             <Fact label="Total amount">{formatMoney(job.totalAmountCents)}</Fact>
@@ -166,12 +172,20 @@ export function HeaderCard({
         )}
       </dl>
 
+      {job && (
+        <TechnicianRoles
+          hcpJobId={job.hcpJobId}
+          technicians={assignedTechnicians}
+          readOnly={readOnly}
+        />
+      )}
+
       {assignedTechnicians.some((t) => t.mobile || t.email) && (
         <div className="mt-3 space-y-1 border-t pt-3">
           <div className="text-xs text-muted-foreground">Technician contact</div>
           <ul className="space-y-0.5">
             {assignedTechnicians.map((t) => (
-              <li key={t.name} className="flex flex-wrap items-center gap-x-2 text-sm">
+              <li key={t.id} className="flex flex-wrap items-center gap-x-2 text-sm">
                 <span className="font-medium">{t.name}</span>
                 <TechContact name={t.name} mobile={t.mobile} email={t.email} />
               </li>
