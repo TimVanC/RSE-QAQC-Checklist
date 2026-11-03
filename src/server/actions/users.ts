@@ -120,10 +120,11 @@ export async function inviteUser(input: {
       resetEmailSent = await sendResetEmail(email);
     }
     revalidatePath('/admin/users');
-    // Only reveal a password the admin did not type themselves when no email was sent.
+    // When nothing was emailed the admin passes the password on themselves, so hand it back
+    // (typed or generated) for the one-time reveal. An emailed password is never returned.
     return {
       ok: true,
-      data: { id: row.id, temporaryPassword: typed || wantEmail ? null : password, resetEmailSent },
+      data: { id: row.id, temporaryPassword: wantEmail ? null : password, resetEmailSent },
     };
   } catch (err) {
     return fail(errorMessage(err));

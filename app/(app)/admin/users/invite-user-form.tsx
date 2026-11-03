@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import type { Role } from '@/src/db/schema/enums';
 import { ROLE_DESCRIPTIONS, ROLE_LABELS, ROLES } from '@/src/lib/auth/roles';
 import { inviteUser } from '@/src/server/actions/users';
+import { SignInDetailsDialog, type SignInDetails } from './sign-in-details-dialog';
 
 export function InviteUserForm() {
   const router = useRouter();
@@ -17,36 +18,43 @@ export function InviteUserForm() {
   const [name, setName] = useState('');
   const [role, setRole] = useState<Role>('caller');
   const [temporaryPassword, setTemporaryPassword] = useState('');
-  const [sendResetEmail, setSendResetEmail] = useState(false);
-  const [revealed, setRevealed] = useState<{ email: string; password: string } | null>(null);
+  // Emailing is the default; the admin opts out to hand over the sign-in details themselves.
+  const [skipEmail, setSkipEmail] = useState(false);
+  const [details, setDetails] = useState<SignInDetails | null>(null);
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
     startTransition(async () => {
-      const result = await inviteUser({ email, name, role, temporaryPassword, sendResetEmail });
+      const result = await inviteUser({
+        email,
+        name,
+        role,
+        temporaryPassword,
+        sendResetEmail: !skipEmail,
+      });
       if (!result.ok) {
         toast.error(result.error);
         return;
       }
       if (result.data.temporaryPassword) {
-        setRevealed({ email, password: result.data.temporaryPassword });
-      } else {
-        setRevealed(null);
-      }
-      toast.success(
-        result.data.resetEmailSent
-          ? temporaryPassword.trim()
+        setDetails({ name, email, password: result.data.temporaryPassword });
+        toast.success(`Invited ${email}.`);
+      } else if (result.data.resetEmailSent) {
+        toast.success(
+          temporaryPassword.trim()
             ? `Invited ${email} and emailed their sign-in details.`
-            : `Invited ${email} and emailed a set-password link.`
-          : sendResetEmail
-            ? `Invited ${email}, but the email could not be sent. Use "Send reset email" or "Set password" to retry.`
-            : `Invited ${email}.`,
-      );
+            : `Invited ${email} and emailed a set-password link.`,
+        );
+      } else {
+        toast.success(
+          `Invited ${email}, but the email could not be sent. Use "Send reset email" or "Set password" to retry.`,
+        );
+      }
       setEmail('');
       setName('');
       setRole('caller');
       setTemporaryPassword('');
-      setSendResetEmail(false);
+      setSkipEmail(false);
       router.refresh();
     });
   }
@@ -102,9 +110,7 @@ export function InviteUserForm() {
             value={temporaryPassword}
             onChange={(e) => setTemporaryPassword(e.target.value)}
             placeholder={
-              sendResetEmail
-                ? 'Leave blank to email a set-password link'
-                : 'Leave blank to generate'
+              skipEmail ? 'Leave blank to generate one' : 'Leave blank to email a set-password link'
             }
           />
         </div>
@@ -116,23 +122,21 @@ export function InviteUserForm() {
         <span className="font-medium text-foreground">{ROLE_LABELS[role]}:</span>{' '}
         {ROLE_DESCRIPTIONS[role]}
       </p>
+      <p className="text-sm text-muted-foreground">
+        They are emailed their sign-in details: with a temporary password above, the password and a
+        reminder to change it; with it blank, a link to choose their own.
+      </p>
       <label className="flex items-start gap-2 text-sm sm:items-center">
         <input
           type="checkbox"
+          id="invite-skip-email"
           className="mt-0.5 size-4 shrink-0 sm:mt-0"
-          checked={sendResetEmail}
-          onChange={(e) => setSendResetEmail(e.target.checked)}
+          checked={skipEmail}
+          onChange={(e) => setSkipEmail(e.target.checked)}
         />
-        Email them. With a temporary password above, they get their sign-in details and a reminder
-        to change it; with it blank, they get a link to choose their own password.
+        Don&apos;t email them. Show me the sign-in details so I can pass them on myself.
       </label>
-      {revealed && (
-        <div className="rounded-lg border bg-muted/50 px-3 py-2 text-sm break-words">
-          Temporary password for <span className="font-medium">{revealed.email}</span>:{' '}
-          <code className="rounded bg-background px-1.5 py-0.5 font-mono">{revealed.password}</code>
-          . Share it with them now; it is not shown again. They can change it under Account.
-        </div>
-      )}
+      <SignInDetailsDialog details={details} onClose={() => setDetails(null)} />
     </div>
   );
 }

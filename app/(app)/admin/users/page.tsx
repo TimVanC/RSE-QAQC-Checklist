@@ -37,8 +37,8 @@ export default async function AdminUsersPage() {
         <CardHeader>
           <CardTitle>Invite a user</CardTitle>
           <CardDescription>
-            Creates the account with a temporary password you pass on, or emails them a link to
-            choose their own.
+            Creates the account and emails them their sign-in details, or shows you a temporary
+            password to pass on yourself.
           </CardDescription>
         </CardHeader>
         <CardContent>
