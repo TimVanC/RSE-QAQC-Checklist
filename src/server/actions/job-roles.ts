@@ -1,10 +1,10 @@
 'use server';
 
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { getDb } from '@/src/db';
-import { hcpJobAssignees } from '@/src/db/schema/hcp';
+import { hcpJobAssignees, technicians } from '@/src/db/schema/hcp';
 import { jobRoles } from '@/src/db/schema/job-roles';
 import { recordAudit } from '@/src/lib/audit';
 import { ForbiddenError, requireRole } from '@/src/lib/auth/session';
@@ -32,9 +32,14 @@ export async function setLeadTechnician(input: SetLeadInput): Promise<ActionResu
     const { hcpJobId, leadTechnicianId } = parsed.data;
 
     const db = getDb();
+    // Only people marked as technicians share production credit; office staff on the job do not.
     const assignees = await db
       .select({ technicianId: hcpJobAssignees.technicianId })
       .from(hcpJobAssignees)
+      .innerJoin(
+        technicians,
+        and(eq(technicians.id, hcpJobAssignees.technicianId), eq(technicians.isTechnician, true)),
+      )
       .where(eq(hcpJobAssignees.hcpJobId, hcpJobId));
     const ids = assignees.map((a) => a.technicianId);
     if (leadTechnicianId && !ids.includes(leadTechnicianId)) {

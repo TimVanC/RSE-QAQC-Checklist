@@ -83,6 +83,7 @@ export function serializeChecklistDetail(detail: ChecklistDetail): WorkspaceData
       mobile: t.mobile,
       email: t.email,
       role: detail.roles[t.id] ?? null,
+      isTechnician: t.isTechnician,
     })),
     answers,
     score,

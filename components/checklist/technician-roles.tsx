@@ -26,9 +26,15 @@ export interface TechnicianRolesProps {
  * tapping the current lead again clears the roles. Only shown when a job has several technicians,
  * since a lone technician always gets full credit.
  */
-export function TechnicianRoles({ hcpJobId, technicians, readOnly }: TechnicianRolesProps) {
+export function TechnicianRoles({
+  hcpJobId,
+  technicians: assigned,
+  readOnly,
+}: TechnicianRolesProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  // Office staff assigned in Housecall Pro get no production credit, so they get no role either.
+  const technicians = assigned.filter((t) => t.isTechnician);
   const [leadId, setLeadId] = useState<string | null>(
     technicians.find((t) => t.role === 'lead')?.id ?? null,
   );

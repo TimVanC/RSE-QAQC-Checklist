@@ -52,6 +52,8 @@ export interface WorkspaceTechnician {
   email: string | null;
   /** Lead or assistant on this job, set by the call team; null until chosen. */
   role: TechnicianRole | null;
+  /** False for office staff assigned in Housecall Pro: listed for contact, never credited. */
+  isTechnician: boolean;
 }
 
 export interface WorkspaceAnswer {

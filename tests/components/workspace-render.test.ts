@@ -73,7 +73,14 @@ function makeData(
     },
     technicianName: 'Sam Tech',
     assignedTechnicians: [
-      { id: 'tech-1', name: 'Sam Tech', mobile: '2015550101', email: null, role: null },
+      {
+        id: 'tech-1',
+        name: 'Sam Tech',
+        mobile: '2015550101',
+        email: null,
+        role: null,
+        isTechnician: true,
+      },
     ],
     answers: {
       s01: {
@@ -132,8 +139,15 @@ describe('ChecklistWorkspace (server render)', () => {
 
   it('asks who led a shared job and shows the 60/40 split once set', () => {
     const two = [
-      { id: 'tech-1', name: 'Sam Tech', mobile: null, email: null, role: null },
-      { id: 'tech-2', name: 'Alex Helper', mobile: null, email: null, role: null },
+      { id: 'tech-1', name: 'Sam Tech', mobile: null, email: null, role: null, isTechnician: true },
+      {
+        id: 'tech-2',
+        name: 'Alex Helper',
+        mobile: null,
+        email: null,
+        role: null,
+        isTechnician: true,
+      },
     ];
     const unset = render(makeData({ assignedTechnicians: two }));
     expect(unset).toContain('Lead technician');
@@ -155,6 +169,22 @@ describe('ChecklistWorkspace (server render)', () => {
 
     // A lone technician never sees the control.
     expect(render(makeData())).not.toContain('Lead technician');
+
+    // Office staff assigned in Housecall Pro are not credited, so they get no role button.
+    const office = {
+      id: 'office-1',
+      name: 'Pat Office',
+      mobile: null,
+      email: null,
+      role: null,
+      isTechnician: false,
+    };
+    const withOffice = render(makeData({ assignedTechnicians: [...two, office] }));
+    expect(withOffice).toContain('No role · 50%');
+    expect(withOffice).not.toContain('data-role-button="office-1"');
+    expect(render(makeData({ assignedTechnicians: [two[0], office] }))).not.toContain(
+      'Lead technician',
+    );
   });
 
   it('offers a follow-up on failed steps and lists existing ones', () => {
